@@ -1,0 +1,5 @@
+-- Add enrichment tracking columns to articles table
+ALTER TABLE articles ADD COLUMN IF NOT EXISTS has_internal_links BOOLEAN DEFAULT FALSE;
+ALTER TABLE articles ADD COLUMN IF NOT EXISTS has_images BOOLEAN DEFAULT FALSE;
+ALTER TABLE articles ADD COLUMN IF NOT EXISTS link_count INTEGER DEFAULT 0;
+ALTER TABLE articles ADD COLUMN IF NOT EXISTS image_count INTEGER DEFAULT 0;
