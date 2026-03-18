@@ -5,7 +5,6 @@ import React from "react"
 import { useState, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -16,11 +15,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { 
-  Upload, 
-  Search, 
-  Package, 
-  Check, 
+import {
+  Search,
+  Package,
+  Check,
   X,
   FileSpreadsheet,
   Loader2,
@@ -60,31 +58,12 @@ export function ProductCatalogManager({ onProductsLoaded }: ProductCatalogManage
   const [dbStatus, setDbStatus] = useState<{ count: number; lastUpdated?: string } | null>(null)
   const [statusLoading, setStatusLoading] = useState(true)
   const [isClearing, setIsClearing] = useState(false)
-  const [collectionSlug, setCollectionSlug] = useState<string>('')
-  const [allCollections, setAllCollections] = useState<{ slug: string; label: string }[]>([])
-
-  // Fetch collections from registry on mount
-  useEffect(() => {
-    fetch('/api/collections/registry')
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data?.collections) setAllCollections(data.collections)
-        else setAllCollections(Object.entries(CATEGORY_LABELS).map(([slug, label]) => ({ slug, label })))
-      })
-      .catch(() => setAllCollections(Object.entries(CATEGORY_LABELS).map(([slug, label]) => ({ slug, label }))))
-  }, [])
-
-  const getLabel = (slug: string) => allCollections.find(c => c.slug === slug)?.label || (CATEGORY_LABELS as Record<string, string>)[slug] || slug
 
   const handleClearProducts = async () => {
-    const label = collectionSlug ? getLabel(collectionSlug) : 'all'
-    if (!confirm(`Remove ${collectionSlug ? label : 'all uploaded'} products? Articles will pull featured products directly from your Shopify store instead.`)) return
+    if (!confirm('Remove all uploaded products? Articles will pull featured products directly from your Shopify store instead.')) return
     setIsClearing(true)
     try {
-      const deleteUrl = collectionSlug 
-        ? `/api/products?collection=${encodeURIComponent(collectionSlug)}`
-        : '/api/products'
-      const res = await fetch(deleteUrl, { method: 'DELETE' })
+      const res = await fetch('/api/products', { method: 'DELETE' })
       if (res.ok) {
         setProducts([])
         setCategories([])
@@ -99,14 +78,11 @@ export function ProductCatalogManager({ onProductsLoaded }: ProductCatalogManage
     }
   }
 
-  // Fetch current database status on mount and when collection changes
+  // Fetch current database status on mount
   useEffect(() => {
     async function fetchStatus() {
       try {
-        const statusUrl = collectionSlug
-          ? `/api/products?status=true&collection=${encodeURIComponent(collectionSlug)}`
-          : '/api/products?status=true'
-        const response = await fetch(statusUrl)
+        const response = await fetch('/api/products?status=true')
         if (response.ok) {
           const data = await response.json()
           setDbStatus({ count: data.total || 0 })
@@ -129,7 +105,7 @@ export function ProductCatalogManager({ onProductsLoaded }: ProductCatalogManage
     }
     setStatusLoading(true)
     fetchStatus()
-  }, [onProductsLoaded, collectionSlug])
+  }, [onProductsLoaded])
 
   const parseCSVLine = (line: string): string[] => {
     const values: string[] = []
@@ -153,6 +129,18 @@ export function ProductCatalogManager({ onProductsLoaded }: ProductCatalogManage
     }
     values.push(current.trim())
     return values
+  }
+
+  // Helper to look up header value case-insensitively
+  const getHeaderValue = (row: Record<string, string>, possibleHeaders: string[]): string => {
+    const lowerRow = Object.fromEntries(
+      Object.entries(row).map(([k, v]) => [k.toLowerCase(), v])
+    )
+    for (const header of possibleHeaders) {
+      const value = lowerRow[header.toLowerCase()]
+      if (value) return value
+    }
+    return ''
   }
 
   const handleFileUpload = async (file: File) => {
@@ -204,30 +192,41 @@ export function ProductCatalogManager({ onProductsLoaded }: ProductCatalogManage
         const row: Record<string, string> = {}
         headers.forEach((h, idx) => { row[h.trim()] = values[idx]?.trim() || '' })
 
-        const title = row['Title'] || ''
-        const handle = row['Handle'] || ''
-        
+        // Support both Shopify and NN custom formats with case-insensitive headers
+        const title = getHeaderValue(row, ['Title', 'title'])
+        const handle = getHeaderValue(row, ['Handle', 'handle'])
+        const description = getHeaderValue(row, ['Body (HTML)', 'Body HTML', 'description', 'Description'])
+        const price = getHeaderValue(row, ['Variant Price', 'price', 'Price'])
+        const compareAtPrice = getHeaderValue(row, ['Variant Compare At Price', 'compareAtPrice', 'Compare At Price'])
+        const sku = getHeaderValue(row, ['Variant SKU', 'sku', 'SKU'])
+        const vendor = getHeaderValue(row, ['Vendor', 'vendor'])
+        const productType = getHeaderValue(row, ['Product Type', 'Type', 'productType', 'category', 'Category'])
+        const tags = getHeaderValue(row, ['Tags', 'tags'])
+        const imageUrl = getHeaderValue(row, ['Image Src', 'imageUrl', 'Image Url', 'image_url', 'url', 'URL'])
+        const status = getHeaderValue(row, ['Status', 'status']) || 'active'
+        const inventoryQty = getHeaderValue(row, ['Total Inventory Qty', 'Variant Inventory Qty', 'inventoryQty', 'inventory_qty'])
+
         // Skip variant rows (no title, same handle) and duplicates
         if (!title) continue
         if (seenHandles.has(handle)) continue
         seenHandles.add(handle)
 
         parsedProducts.push({
-          id: row['ID'] || handle || `product-${i}`,
+          id: getHeaderValue(row, ['ID', 'id']) || handle || `product-${i}`,
           title,
           handle,
-          description: (row['Body (HTML)'] || row['Body HTML'] || '').slice(0, 500),
-          price: row['Variant Price'] || '',
-          compareAtPrice: row['Variant Compare At Price'] || '',
-          sku: row['Variant SKU'] || '',
-          vendor: row['Vendor'] || '',
-          productType: row['Product Type'] || row['Type'] || '',
-          tags: row['Tags'] || '',
-          category: row['Product Type'] || row['Type'] || '',
-          imageUrl: row['Image Src'] || '',
-          status: row['Status'] || 'active',
-          inventoryQty: row['Total Inventory Qty'] || row['Variant Inventory Qty'] || '',
-          url: row['URL'] || '',
+          description: description.slice(0, 500),
+          price,
+          compareAtPrice,
+          sku,
+          vendor,
+          productType,
+          tags,
+          category: productType,
+          imageUrl,
+          status,
+          inventoryQty,
+          url: imageUrl,
         })
       }
 
@@ -237,10 +236,7 @@ export function ProductCatalogManager({ onProductsLoaded }: ProductCatalogManage
       const response = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          products: parsedProducts,
-          ...(collectionSlug ? { collection_slug: collectionSlug } : {}),
-        }),
+        body: JSON.stringify({ products: parsedProducts }),
       })
 
       if (!response.ok) {
@@ -302,7 +298,6 @@ export function ProductCatalogManager({ onProductsLoaded }: ProductCatalogManage
       const params = new URLSearchParams()
       if (selectedCategory !== 'all') params.set('category', selectedCategory)
       if (searchTerm) params.set('search', searchTerm)
-      if (collectionSlug) params.set('collection', collectionSlug)
       params.set('limit', '20')
 
       const response = await fetch(`/api/products?${params}`)
@@ -338,39 +333,16 @@ export function ProductCatalogManager({ onProductsLoaded }: ProductCatalogManage
           <div>
             <CardTitle className="text-xl">Product Catalog</CardTitle>
             <CardDescription>
-              {statusLoading 
+              {statusLoading
                 ? 'Checking database...'
-                : totalCount > 0 
-                  ? `${totalCount.toLocaleString()} products${collectionSlug ? ` in ${getLabel(collectionSlug)}` : ' in database'} (showing ${products.length})` 
-                  : collectionSlug 
-                    ? `No products for ${getLabel(collectionSlug)} - upload a CSV`
-                    : 'No products in database - upload your Shopify CSV'}
+                : totalCount > 0
+                  ? `${totalCount.toLocaleString()} products in database (showing ${products.length})`
+                  : 'No products in database — upload your product CSV'}
             </CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Collection Scope Selector */}
-        <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 p-3">
-          <Label className="text-sm font-medium whitespace-nowrap">Collection Scope:</Label>
-          <Select value={collectionSlug || 'all-collections'} onValueChange={(v) => setCollectionSlug(v === 'all-collections' ? '' : v)}>
-            <SelectTrigger className="w-[260px]">
-              <SelectValue placeholder="All collections (unscoped)" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all-collections">All Collections (unscoped)</SelectItem>
-{allCollections.map((col) => (
-  <SelectItem key={col.slug} value={col.slug}>{col.label}</SelectItem>
-  ))}
-            </SelectContent>
-          </Select>
-          {collectionSlug && collectionSlug !== 'all-collections' && (
-            <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20">
-              Scoped to {getLabel(collectionSlug)}
-            </Badge>
-          )}
-        </div>
-
         {/* Database Status Banner */}
         {!statusLoading && (
           <div className={cn(
@@ -382,7 +354,7 @@ export function ProductCatalogManager({ onProductsLoaded }: ProductCatalogManage
             {dbStatus && dbStatus.count > 0 ? (
               <>
                 <Check className="h-4 w-4 shrink-0" />
-                <span className="flex-1"><strong>{dbStatus.count} products</strong>{collectionSlug ? ` in ${getLabel(collectionSlug)}` : ' from CSV upload'} - these override Shopify API</span>
+                <span className="flex-1"><strong>{dbStatus.count} products</strong> from CSV upload - these override Shopify API</span>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -440,7 +412,7 @@ export function ProductCatalogManager({ onProductsLoaded }: ProductCatalogManage
                 {isLoading ? 'Processing...' : 'Drop CSV file here or click to upload'}
               </p>
               <p className="text-sm text-muted-foreground">
-                Supports Shopify product export format
+                Upload your NN products CSV or Shopify export
               </p>
             </div>
           </div>
