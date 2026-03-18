@@ -83,6 +83,60 @@ p:empty { display: none; }
 details[open] .nn-faq-question::before{content:"−"}
 .nn-faq-answer{padding:0 0 1.25rem 0;color:#4a5568;line-height:1.7}
 
+/* --- SUBTITLE --- */
+.nn-subtitle{font-size:1.2rem;color:#4a5568;line-height:1.5;margin-bottom:0.5rem;font-style:italic}
+.nn-dot{width:4px;height:4px;border-radius:50%;background:#8a94a0;display:inline-block}
+
+/* --- QUICK ANSWER BOX --- */
+.nn-quick-answer{border:2px solid #1a1a1a;border-radius:12px;padding:1.75rem 2rem;margin:2rem 0;background:#fff}
+.nn-quick-answer-header{display:flex;align-items:center;gap:0.5rem;font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;color:#1a1a1a;margin-bottom:1rem}
+.nn-quick-answer-header span{width:28px;height:28px;background:#1a1a1a;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:0.8rem}
+.nn-quick-answer-text{font-family:'Open Sans',sans-serif;font-size:1.15rem;line-height:1.6;color:#1a1a1a}
+.nn-quick-answer-text strong{color:#00C853}
+
+/* --- HERO IMAGE --- */
+.nn-hero-image{width:100%;max-height:420px;object-fit:cover;border-radius:16px;margin:1.5rem 0 0.5rem;box-shadow:0 8px 24px rgba(0,0,0,0.1)}
+.nn-hero-placeholder{width:100%;height:320px;background:linear-gradient(135deg,#f0f4f8 0%,#e2e8f0 50%,#f0f4f8 100%);border-radius:16px;margin:1.5rem 0 0.5rem;display:flex;align-items:center;justify-content:center;color:#8a94a0;font-family:'Oswald',sans-serif;font-size:1rem;text-transform:uppercase;letter-spacing:0.05em}
+
+/* --- INFO BOXES WITH ICONS --- */
+.nn-info-box{background:#f8f9fa;border-radius:12px;padding:2rem;margin:2rem 0;border:1px solid #e0e0e0}
+.nn-info-box-header{display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem}
+.nn-info-box-icon{width:48px;height:48px;border-radius:50%;background:#1a1a1a;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.nn-info-box-icon span{color:#fff;font-size:1.3rem}
+.nn-info-box-title{font-family:'Oswald',sans-serif;font-size:1.3rem;font-weight:600;color:#1a1a1a}
+.nn-info-box ul{margin:0;padding-left:0;list-style:none}
+.nn-info-box li{padding:0.4rem 0;font-size:1rem;line-height:1.5;color:#2d2d2d}
+.nn-info-box li::before{content:"✓ ";color:#00C853;font-weight:700}
+
+/* --- IMMERSIVE PRODUCT CTA --- */
+.nn-product-hero{background:linear-gradient(135deg,#1a1a1a 0%,#2d2d2d 100%);border-radius:20px;padding:3rem;margin:3rem 0;display:flex;gap:2.5rem;align-items:center;color:#fff;overflow:hidden;position:relative}
+.nn-product-hero::before{content:"";position:absolute;top:-50%;right:-10%;width:300px;height:300px;background:radial-gradient(circle,rgba(0,163,255,0.15) 0%,transparent 70%);border-radius:50%}
+.nn-product-hero-image{flex-shrink:0;width:280px;height:280px;background:rgba(255,255,255,0.05);border-radius:16px;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;z-index:1}
+.nn-product-hero-image img{max-width:260px;max-height:260px;object-fit:contain}
+.nn-product-hero-content{flex:1;position:relative;z-index:1}
+.nn-product-hero-badge{display:inline-block;background:#00A3FF;color:#fff;padding:0.3rem 0.85rem;border-radius:50px;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:1rem}
+.nn-product-hero h3{font-family:'Oswald',sans-serif;font-size:2rem;color:#fff;margin:0 0 0.5rem;line-height:1.2}
+.nn-product-hero-features{list-style:none;padding:0;margin:1rem 0}
+.nn-product-hero-features li{padding:0.3rem 0;font-size:1rem;color:rgba(255,255,255,0.9)}
+.nn-product-hero-features li::before{content:"✓ ";color:#00C853;font-weight:700}
+.nn-product-hero-price{font-family:'Oswald',sans-serif;font-size:2.2rem;font-weight:700;color:#00C853;margin:1rem 0}
+.nn-product-hero-stars{color:#FFD700;font-size:1rem;margin-bottom:1rem;letter-spacing:2px}
+.nn-product-hero .nn-cta{font-size:1.1rem;padding:1rem 2.5rem}
+
+/* --- CUSTOMER TESTIMONIALS --- */
+.nn-testimonials{background:linear-gradient(135deg,#1a1a1a 0%,#2d2d2d 100%);border-radius:20px;padding:3rem;margin:3rem 0;color:#fff}
+.nn-testimonials h2{color:#fff;text-align:center;margin-bottom:2rem}
+.nn-testimonials-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem}
+.nn-testimonial-card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:1.5rem}
+.nn-testimonial-stars{color:#FFD700;font-size:0.9rem;margin-bottom:0.75rem;letter-spacing:2px}
+.nn-testimonial-quote{font-style:italic;font-size:0.95rem;line-height:1.6;color:rgba(255,255,255,0.85);margin-bottom:1rem}
+.nn-testimonial-author{font-family:'Oswald',sans-serif;font-size:0.85rem;font-weight:600;color:#00A3FF}
+.nn-testimonial-verified{font-size:0.75rem;color:rgba(255,255,255,0.5);margin-top:0.25rem}
+
+/* --- VIDEO EMBED --- */
+.nn-video-embed{position:relative;width:100%;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:16px;margin:2.5rem 0;box-shadow:0 8px 24px rgba(0,0,0,0.12)}
+.nn-video-embed iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0}
+
 /* --- MOBILE --- */
 @media(max-width:768px){
 .nn-grid.cols-2,.nn-grid.cols-3{grid-template-columns:1fr}
@@ -90,5 +144,9 @@ details[open] .nn-faq-question::before{content:"−"}
 .nn-cta,.nn-cta-secondary{width:100%;text-align:center}
 .nn-email-gate{padding:1.5rem}
 .nn-topnav{justify-content:center}
+.nn-product-hero{flex-direction:column;padding:2rem;text-align:center}
+.nn-product-hero-image{width:200px;height:200px;margin:0 auto}
+.nn-testimonials-grid{grid-template-columns:1fr}
+.nn-quick-answer{padding:1.25rem}
 }
 </style>`;

@@ -89,14 +89,13 @@ export async function POST(request: NextRequest) {
     // ── Conversion element instructions ───────────────────────────────────
 
     const emailCaptureHtml = includeEmailCapture
-      ? `\n<section class="nn-section nn-email-gate">
-<h3>Get Expert Nutrition Tips</h3>
-<p>Subscribe to our newsletter for the latest supplement research and exclusive NN member benefits.</p>
-<form class="nn-email-form">
-<input type="email" placeholder="Enter your email" required />
-<button type="submit" class="nn-cta">Subscribe</button>
-</form>
-</section>`
+      ? `\n<div class="nn-email-gate">
+<span class="nn-incentive">🎁 10% Off Your First Order</span>
+<h3>Get Your Free ${categoryLabel} Guide</h3>
+<p class="nn-body">Subscribe for evidence-based ${categoryLabel.toLowerCase()} tips, exclusive member discounts, and our latest research roundups — delivered weekly.</p>
+<!-- KLAVIYO_FORM_EMBED: nn-blog-email-capture -->
+<p style="font-size:0.8rem;color:#8a94a0;margin-top:1rem;">No spam. Unsubscribe anytime.</p>
+</div>`
       : ""
 
     const calculatorHtml =
@@ -141,6 +140,23 @@ STRUCTURE YOU MUST FOLLOW:
 6. Do NOT include any image tags or image placeholders. Images are added separately after content generation.
 7. Do NOT include an FAQ section. The FAQ is generated in a separate step.
 8. If you include a comparison table, it must NEVER be the last section. Always follow it with a prose wrap-up section.
+9. RESEARCH CALLOUT BOXES: For 1-2 of the most important research findings, create a dedicated callout using this structure:
+   <div class="nn-callout" style="background:linear-gradient(135deg,#f0f8ff 0%,#e6f4ff 100%);border-left-color:#00A3FF;border-left-width:5px;padding:1.5rem;">
+   <p style="font-family:'Oswald',sans-serif;font-weight:600;font-size:1.1rem;margin-bottom:0.5rem;">📊 What Research Says</p>
+   <p class="nn-body">[Specific finding from the research with the linked citation]</p>
+   </div>
+10. INFO BOXES WITH ICONS: For 1-2 key concept explanations (e.g., "How Creatine Works", "The Muscle Growth Equation", "Safety Facts"), create a rich info box using this structure:
+   <div class="nn-info-box">
+   <div class="nn-info-box-header">
+   <div class="nn-info-box-icon"><span>[relevant emoji like 🧬 or 💪 or 🔬 or ⚡]</span></div>
+   <div class="nn-info-box-title">[Concept Title]</div>
+   </div>
+   <ul>
+   <li>[Key fact or step 1]</li>
+   <li>[Key fact or step 2]</li>
+   <li>[Key fact or step 3]</li>
+   </ul>
+   </div>
 
 WRITING GUIDELINES:
 - Preserve the original article's strongest points and insights — don't discard what works

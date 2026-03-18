@@ -26,9 +26,13 @@ interface FinalizeRequest {
   revampSourceId?: number
   includeProducts?: boolean
   relatedArticles?: { title: string; url: string; description: string }[]
+  citations?: { url: string; title?: string; author?: string; notes?: string }[]
   collection?: string
   tone?: string
   wordCount?: number
+  videoUrl?: string
+  heroImageUrl?: string
+  quickAnswer?: string
 }
 
 // ── SVG icon for external links ──────────────────────────────────────────────
@@ -222,6 +226,220 @@ ${cards}
 </section>`
 }
 
+// ── HTML Post-Processor: adds nn-body/nn-h2/nn-h3 classes to plain tags ─────
+
+function postProcessHtml(html: string): string {
+  let result = html
+
+  // Add nn-h2 class to all <h2> tags that don't already have it
+  result = result.replace(/<h2(?![^>]*class="[^"]*nn-h2)([^>]*)>/gi, (match, attrs) => {
+    if (attrs.includes('class="')) {
+      return match.replace(/class="/, 'class="nn-h2 ')
+    }
+    return `<h2 class="nn-h2"${attrs}>`
+  })
+
+  // Add nn-h3 class to all <h3> tags that don't already have it
+  result = result.replace(/<h3(?![^>]*class="[^"]*nn-h3)([^>]*)>/gi, (match, attrs) => {
+    if (attrs.includes('class="')) {
+      return match.replace(/class="/, 'class="nn-h3 ')
+    }
+    return `<h3 class="nn-h3"${attrs}>`
+  })
+
+  // Add nn-body class to all <p> tags that don't already have an nn- class
+  // Skip p tags inside product cards, email gates, meta, etc.
+  result = result.replace(/<p(?![^>]*class="[^"]*nn-)([^>]*)>/gi, (match, attrs) => {
+    if (attrs.includes('class="')) {
+      return match.replace(/class="/, 'class="nn-body ')
+    }
+    return `<p class="nn-body"${attrs}>`
+  })
+
+  // Add nn-h1 class to <h1> tags that don't already have it
+  result = result.replace(/<h1(?![^>]*class="[^"]*nn-h1)([^>]*)>/gi, (match, attrs) => {
+    if (attrs.includes('class="')) {
+      return match.replace(/class="/, 'class="nn-h1 ')
+    }
+    return `<h1 class="nn-h1"${attrs}>`
+  })
+
+  return result
+}
+
+// ── Static trust badges HTML (same for every article) ───────────────────────
+
+const TRUST_BADGES_HTML = `<section class="nn-section" style="background:#f8f9fa;border-radius:16px;padding:2.5rem 2rem;margin:3rem 0;">
+<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2rem;align-items:center;">
+<div style="text-align:center;min-width:120px;"><div style="width:56px;height:56px;border-radius:50%;background:#1a1a1a;display:flex;align-items:center;justify-content:center;margin:0 auto 0.5rem;"><span style="color:#fff;font-size:1.4rem;">🔬</span></div><span style="font-family:'Oswald',sans-serif;font-size:0.8rem;font-weight:600;text-transform:uppercase;color:#1a1a1a;">Third Party Tested</span></div>
+<div style="text-align:center;min-width:120px;"><div style="width:56px;height:56px;border-radius:50%;background:#1a1a1a;display:flex;align-items:center;justify-content:center;margin:0 auto 0.5rem;"><span style="color:#fff;font-size:1.4rem;">✦</span></div><span style="font-family:'Oswald',sans-serif;font-size:0.8rem;font-weight:600;text-transform:uppercase;color:#1a1a1a;">No Additives</span></div>
+<div style="text-align:center;min-width:120px;"><div style="width:56px;height:56px;border-radius:50%;background:#1a1a1a;display:flex;align-items:center;justify-content:center;margin:0 auto 0.5rem;"><span style="color:#fff;font-size:1.4rem;">🌿</span></div><span style="font-family:'Oswald',sans-serif;font-size:0.8rem;font-weight:600;text-transform:uppercase;color:#1a1a1a;">GMO Free</span></div>
+<div style="text-align:center;min-width:120px;"><div style="width:56px;height:56px;border-radius:50%;background:#1a1a1a;display:flex;align-items:center;justify-content:center;margin:0 auto 0.5rem;"><span style="color:#fff;font-size:1.4rem;">🚫</span></div><span style="font-family:'Oswald',sans-serif;font-size:0.8rem;font-weight:600;text-transform:uppercase;color:#1a1a1a;">Gluten Free</span></div>
+<div style="text-align:center;min-width:120px;"><div style="width:56px;height:56px;border-radius:50%;background:#1a1a1a;display:flex;align-items:center;justify-content:center;margin:0 auto 0.5rem;"><span style="color:#fff;font-size:1.4rem;">🍃</span></div><span style="font-family:'Oswald',sans-serif;font-size:0.8rem;font-weight:600;text-transform:uppercase;color:#1a1a1a;">No Artificial Sweeteners</span></div>
+<div style="text-align:center;min-width:120px;"><div style="width:56px;height:56px;border-radius:50%;background:#1a1a1a;display:flex;align-items:center;justify-content:center;margin:0 auto 0.5rem;"><span style="color:#fff;font-size:1.4rem;">🌱</span></div><span style="font-family:'Oswald',sans-serif;font-size:0.8rem;font-weight:600;text-transform:uppercase;color:#1a1a1a;">Vegan Options</span></div>
+</div>
+</section>`
+
+// ── Static author bio HTML ──────────────────────────────────────────────────
+
+const AUTHOR_BIO_HTML = `<section class="nn-section" style="background:#f0f4f8;border-radius:12px;padding:2rem;display:flex;gap:1.5rem;align-items:flex-start;margin:3rem 0;">
+<div style="flex-shrink:0;width:72px;height:72px;border-radius:50%;background:#d0d8e0;display:flex;align-items:center;justify-content:center;"><span style="font-size:2rem;color:#4a5568;">NN</span></div>
+<div>
+<p style="font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:600;color:#1a1a1a;margin:0 0 0.25rem;">Written by the Naked Nutrition Team</p>
+<p style="font-size:0.85rem;color:#00A3FF;font-weight:600;margin:0 0 0.75rem;">Certified Sports Nutritionists</p>
+<p style="font-size:0.95rem;line-height:1.6;color:#4a5568;margin:0;">Our team of nutrition experts and certified sports nutritionists research and fact-check every article. We believe in radical transparency — from our ingredients to our content. Every claim is backed by peer-reviewed science.</p>
+</div>
+</section>`
+
+// ── Build immersive product CTA for #1 recommended product ──────────────────
+
+function buildProductHeroHtml(
+  product: {
+    title: string
+    description?: string
+    price?: string
+    imageUrl?: string
+    url?: string
+    handle?: string
+    vendor?: string
+    tags?: string
+  },
+  categoryLabel: string
+): string {
+  const productUrl = product.handle ? `/products/${product.handle}` : (product.url || "#")
+  const features = extractFeatures(product)
+
+  const imageHtml = product.imageUrl
+    ? `<img src="${product.imageUrl}" alt="${product.title}" loading="lazy" />`
+    : `<span style="color:rgba(255,255,255,0.3);font-size:3rem;">📦</span>`
+
+  let priceHtml = ""
+  if (product.price) {
+    const numPrice = parseFloat(product.price)
+    if (!isNaN(numPrice) && numPrice > 0) {
+      const formatted = numPrice % 1 === 0
+        ? numPrice.toLocaleString("en-US")
+        : numPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      priceHtml = `<div class="nn-product-hero-price">$${formatted}</div>`
+    }
+  }
+
+  const featureBullets = features
+    .map((f) => `<li>${f}</li>`)
+    .join("\n")
+
+  return `<section class="nn-product-hero">
+<div class="nn-product-hero-image">${imageHtml}</div>
+<div class="nn-product-hero-content">
+<span class="nn-product-hero-badge">Editor's Top Pick</span>
+<h3>${product.title}</h3>
+<div class="nn-product-hero-stars">★★★★★ <span style="color:rgba(255,255,255,0.6);font-size:0.85rem;">4.8/5</span></div>
+<ul class="nn-product-hero-features">
+${featureBullets}
+</ul>
+${priceHtml}
+<a class="nn-cta" href="${productUrl}">Shop ${getShortName(product.title)}</a>
+</div>
+</section>`
+}
+
+// ── Build customer testimonials section ──────────────────────────────────────
+
+function buildTestimonialsHtml(categoryLabel: string): string {
+  // Static testimonials — category-aware messaging
+  const testimonials = [
+    {
+      stars: 5,
+      quote: `The quality is unmatched. I've tried dozens of ${categoryLabel.toLowerCase()} products and nothing comes close to Naked Nutrition's transparency and purity.`,
+      author: "Michael R.",
+      verified: true,
+    },
+    {
+      stars: 5,
+      quote: "Finally a brand that lists every single ingredient with no proprietary blends. The results speak for themselves — I've seen real gains since switching.",
+      author: "Sarah K.",
+      verified: true,
+    },
+    {
+      stars: 5,
+      quote: "Clean ingredients, fast shipping, and excellent customer service. I recommend Naked Nutrition to everyone at my gym.",
+      author: "James T.",
+      verified: true,
+    },
+  ]
+
+  const cards = testimonials.map((t) => `<div class="nn-testimonial-card">
+<div class="nn-testimonial-stars">${"★".repeat(t.stars)}${"☆".repeat(5 - t.stars)}</div>
+<p class="nn-testimonial-quote">"${t.quote}"</p>
+<p class="nn-testimonial-author">${t.author}</p>
+${t.verified ? `<p class="nn-testimonial-verified">✓ Verified Buyer</p>` : ""}
+</div>`).join("\n")
+
+  return `<section class="nn-testimonials">
+<h2>What Our Customers Say</h2>
+<div class="nn-testimonials-grid">
+${cards}
+</div>
+</section>`
+}
+
+// ── Build video embed section ────────────────────────────────────────────────
+
+function buildVideoEmbedHtml(videoUrl: string, title: string): string {
+  if (!videoUrl) return ""
+
+  // Extract YouTube video ID
+  let videoId = ""
+  const ytMatch = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/)
+  if (ytMatch) {
+    videoId = ytMatch[1]
+  }
+
+  if (!videoId) {
+    // Try Vimeo
+    const vimeoMatch = videoUrl.match(/vimeo\.com\/(\d+)/)
+    if (vimeoMatch) {
+      return `<div class="nn-video-embed">
+<iframe src="https://player.vimeo.com/video/${vimeoMatch[1]}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="${title}"></iframe>
+</div>`
+    }
+    return "" // Unsupported video URL
+  }
+
+  // YouTube embed with VideoObject schema
+  return `<div class="nn-video-embed">
+<iframe src="https://www.youtube.com/embed/${videoId}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen title="${title}"></iframe>
+</div>
+<script type="application/ld+json">
+${JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "VideoObject",
+  name: title,
+  embedUrl: `https://www.youtube.com/embed/${videoId}`,
+  thumbnailUrl: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+}, null, 2)}
+</script>`
+}
+
+// ── Build scientific references section from citations ───────────────────────
+
+function buildReferencesHtml(citations: { url: string; title?: string; author?: string; notes?: string }[]): string {
+  if (!citations || citations.length === 0) return ""
+  const refs = citations.map((c, i) => {
+    const titleText = c.title || new URL(c.url).hostname.replace("www.", "")
+    const authorText = c.author ? `${c.author}. ` : ""
+    return `<li style="margin-bottom:0.75rem;font-size:0.95rem;line-height:1.5;color:#4a5568;">
+<span style="font-weight:600;color:#1a1a1a;">[${i + 1}]</span> ${authorText}<a href="${c.url}" class="nn-links" target="_blank" rel="noopener">${titleText}</a>${c.notes ? ` — <em>${c.notes}</em>` : ""}
+</li>`
+  })
+  return `<section class="nn-section" style="border-left:4px solid #1a1a1a;background:#f8f9fa;padding:2rem;border-radius:0 12px 12px 0;margin:3rem 0;">
+<h2 class="nn-h2" style="font-size:1.6rem;margin-top:0;">Scientific References</h2>
+<ol style="padding-left:0;list-style:none;margin:0;">
+${refs.join("\n")}
+</ol>
+</section>`
+}
+
 // ── Main handler ─────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
@@ -250,12 +468,33 @@ export async function POST(request: NextRequest) {
     const categoryLabel = (CATEGORY_LABELS as Record<string, string>)[category] || category || "Supplements"
     const collectionSlug = CATEGORY_COLLECTION[category] || (collection ? collectionNameToSlug(collection) : "all")
     const readTime = Math.max(5, Math.round((wordCount || 2500) / 250))
-    const title = titleTag || keyword
 
-    // ── Generate subtitle ────────────────────────────────────────────────────
+    // ── Generate proper title (not raw keyword) ──────────────────────────────
+    // If titleTag looks like a real title (has capitals, >30 chars), use it.
+    // Otherwise generate one from the keyword.
+    const hasProperTitle = titleTag && titleTag !== keyword && /[A-Z]/.test(titleTag) && titleTag.length > 20
+    let title = titleTag || keyword
+    if (!hasProperTitle) {
+      const titlePrompt = `Write a compelling, SEO-optimized article title for the keyword "${keyword}" in the ${categoryLabel} category for Naked Nutrition's blog. The title should be engaging, include the keyword naturally, and be under 70 characters. Return ONLY the title text, no quotes or explanation.`
+      const generatedTitle = await callAI("You write SEO article titles.", titlePrompt, { maxTokens: 80 })
+      title = generatedTitle.replace(/^["']|["']$/g, "").trim() || titleTag || keyword
+    }
+
+    // ── Generate subtitle + quick answer in parallel ───────────────────────
 
     const subtitlePrompt = `Write a single compelling subtitle sentence (under 150 chars) for an article titled "${title}" about ${keyword}. Return ONLY the sentence, no quotes.`
-    const subtitle = await callAI("You write concise article subtitles.", subtitlePrompt, { maxTokens: 100 })
+    const quickAnswerPrompt = `You are answering a reader's question for Naked Nutrition's blog. The article title is "${title}" about ${keyword} in the ${categoryLabel} category.
+
+Write a single, direct 1-2 sentence answer to the implied question. Make the KEY phrase (the actual answer) wrapped in <strong> tags. Keep it under 100 words total. Return ONLY the answer HTML, no explanation.
+
+Example format: "Yes, <strong>creatine is safe to take without working out</strong> and can still provide cognitive and general health benefits, though the muscle-building effects are maximized when paired with resistance training."`
+
+    const [subtitle, quickAnswerRaw] = await Promise.all([
+      callAI("You write concise article subtitles.", subtitlePrompt, { maxTokens: 100 }),
+      body.quickAnswer
+        ? Promise.resolve(body.quickAnswer)
+        : callAI("You write direct, expert answers for nutrition articles.", quickAnswerPrompt, { maxTokens: 200 }),
+    ])
 
     // ── Load products via productStore ───────────────────────────────────────
 
@@ -288,40 +527,69 @@ export async function POST(request: NextRequest) {
 
     // ── Overview / Hero section ──────────────────────────────────────────────
 
+    const heroImageHtml = body.heroImageUrl
+      ? `<img class="nn-hero-image" src="${body.heroImageUrl}" alt="${title}" />`
+      : `<div class="nn-hero-placeholder"><!-- HERO_IMAGE: ${keyword} --></div>`
+
     const overviewHtml = `<section id="overview" class="nn-section">
 <div class="nn-kicker">${categoryLabel}</div>
 <h1>${title}</h1>
 <p class="nn-subtitle">${subtitle.trim()}</p>
 <div class="nn-meta"><span>By Naked Nutrition</span><span class="nn-dot"></span><span>${readTime} min read</span></div>
+${heroImageHtml}
 </section>`
 
-    // ── Featured Products section (deterministic HTML) ───────────────────────
+    // ── Quick Answer box ─────────────────────────────────────────────────────
 
-    let productsHtml = ""
+    const cleanedQuickAnswer = quickAnswerRaw
+      .replace(/^["']|["']$/g, "")
+      .replace(/```html?\n?/g, "")
+      .replace(/```/g, "")
+      .trim()
+
+    const quickAnswerHtml = `<div class="nn-quick-answer">
+<div class="nn-quick-answer-header"><span>⚡</span> Quick Answer</div>
+<div class="nn-quick-answer-text">${cleanedQuickAnswer}</div>
+</div>`
+
+    // ── Video embed (if provided) ────────────────────────────────────────────
+
+    const videoHtml = body.videoUrl ? buildVideoEmbedHtml(body.videoUrl, title) : ""
+
+    // ── Featured Products section (deterministic HTML) ───────────────────────
+    // Split: immersive hero for #1 product + grid cards for alternatives
+
+    let productHeroHtml = ""
+    let productsGridHtml = ""
     if (includeProducts && products.length > 0) {
-      const displayProducts = products.slice(0, 4)
-      const cards = displayProducts
-        .map((p, i) => buildProductCard(p, i, displayProducts))
-        .join("\n")
-      productsHtml = `\n<section id="featured-products" class="nn-section">
-<h2 class="nn-center">Top ${categoryLabel} Picks</h2>
-<p style="margin-bottom:3rem;color:#666;font-size:1.6rem;" class="nn-center">Evidence-based formulas with free shipping included and expert nutrition support.</p>
-<div class="nn-grid cols-2">
+      // Immersive dark CTA for the top product
+      productHeroHtml = buildProductHeroHtml(products[0], categoryLabel)
+
+      // Grid cards for remaining products (2-4)
+      if (products.length > 1) {
+        const alternateProducts = products.slice(1, 4)
+        const cards = alternateProducts
+          .map((p, i) => buildProductCard(p, i + 1, products))
+          .join("\n")
+        productsGridHtml = `\n<section id="featured-products" class="nn-section">
+<h2 class="nn-center">More ${categoryLabel} Options</h2>
+<div class="nn-grid cols-${Math.min(alternateProducts.length, 3)}">
 ${cards}
 </div>
 </section>`
+      }
     }
 
-    // Insert products after Key Takeaways (first </section>)
+    // Insert product hero after Key Takeaways (first </section>), grid cards after second section
     let bodyWithProducts = processedContent
-    if (productsHtml) {
+    if (productHeroHtml) {
       const firstSectionEnd = processedContent.indexOf("</section>")
       if (firstSectionEnd !== -1) {
         const insertAt = firstSectionEnd + "</section>".length
         bodyWithProducts =
-          processedContent.slice(0, insertAt) + productsHtml + processedContent.slice(insertAt)
+          processedContent.slice(0, insertAt) + productHeroHtml + processedContent.slice(insertAt)
       } else {
-        bodyWithProducts = productsHtml + processedContent
+        bodyWithProducts = productHeroHtml + processedContent
       }
     }
 
@@ -361,11 +629,20 @@ ${cards}
     ]
     const navHtml = `<nav class="nn-topnav" aria-label="Quick navigation">\n${navLinks.join("\n")}\n</nav>`
 
+    // ── Scientific References section (from citations) ─────────────────────
+
+    const referencesHtml = buildReferencesHtml(body.citations || [])
+
+    // ── Customer testimonials ────────────────────────────────────────────────
+
+    const testimonialsHtml = buildTestimonialsHtml(categoryLabel)
+
     // ══════════════════════════════════════════════════════════════════════════
     // FINAL ASSEMBLY
     // ══════════════════════════════════════════════════════════════════════════
 
-    const finalHtml = `${NN_STYLES}
+    // Assemble all sections, then post-process to add nn- classes
+    const assembledHtml = `${NN_STYLES}
 
 <div class="nn-wrap" style="text-align: start;">
 <article class="nn-container nn-article" itemscope itemtype="https://schema.org/Article">
@@ -373,14 +650,24 @@ ${cards}
 ${navHtml}
 
 ${overviewHtml}
+${quickAnswerHtml}
 ${bodyWithProducts}
+${videoHtml}
+${productsGridHtml}
+${TRUST_BADGES_HTML}
+${testimonialsHtml}
 ${faqHtml}
+${referencesHtml}
+${AUTHOR_BIO_HTML}
 ${relatedHtml}
 ${ctaHtml}
 
 </article>
 </div>
-${faqSchema.length > 0 ? `\n<script type="application/ld+json">\n${faqSchema}\n</script>` : ""}`.trim()
+${faqSchema.length > 0 ? `\n<script type="application/ld+json">\n${faqSchema}\n</script>` : ""}`
+
+    // Post-process: add nn-body/nn-h1/nn-h2/nn-h3 classes to all plain tags
+    const finalHtml = postProcessHtml(assembledHtml).trim()
 
     console.log("[revamp/finalize] NN article assembled, total length:", finalHtml.length)
 

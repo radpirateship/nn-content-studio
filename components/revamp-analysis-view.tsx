@@ -10,12 +10,19 @@ interface Claim {
   citationIndex?: number
 }
 
+interface SuggestedOutlineSection {
+  heading: string
+  keyPoints: string[]
+  isNew: boolean
+}
+
 interface AnalysisData {
   wordCount: number
   headings: string[]
   links: number
   images: number
   claims: Claim[]
+  suggestedOutline?: SuggestedOutlineSection[]
 }
 
 interface Citation {
@@ -37,6 +44,7 @@ interface RevampAnalysisViewProps {
     includeFAQ?: boolean
     includeSchema?: boolean
     includeImages?: boolean
+    videoUrl?: string
   }
   onGenerateComplete: (article: GeneratedArticle) => void
   onBack: () => void
@@ -61,53 +69,34 @@ export function RevampAnalysisView({
   generateSchemaMarkup,
   saveArticleToDb,
 }: RevampAnalysisViewProps) {
-  const [outline, setOutline] = useState<OutlineSectionState[]>([
-    {
-      id: '1',
-      heading: 'Introduction',
-      keyPoints: ['Hook', 'Problem statement', 'Solution preview'],
-      estimatedWords: 200,
-      isNew: false,
-    },
-    {
-      id: '2',
-      heading: 'Main Content',
-      keyPoints: ['Key insight 1', 'Key insight 2', 'Key insight 3'],
-      estimatedWords: 800,
-      isNew: false,
-    },
-    {
-      id: '3',
-      heading: 'Conclusion',
-      keyPoints: ['Summary of key points', 'Call to action', 'Final thought'],
-      estimatedWords: 200,
-      isNew: false,
-    },
-  ])
+  // Populate outline from AI analysis suggestedOutline (P0 fix)
+  const initialOutline: OutlineSectionState[] = analysis.suggestedOutline?.length
+    ? analysis.suggestedOutline.map((s: SuggestedOutlineSection, i: number) => ({
+        id: String(i + 1),
+        heading: s.heading,
+        keyPoints: s.keyPoints || ['Key point'],
+        estimatedWords: Math.round((settings.wordCount || 2500) / (analysis.suggestedOutline?.length || 6)),
+        isNew: s.isNew ?? false,
+      }))
+    : [
+        { id: '1', heading: 'Introduction', keyPoints: ['Hook', 'Problem statement', 'Solution preview'], estimatedWords: 200, isNew: false },
+        { id: '2', heading: 'Main Content', keyPoints: ['Key insight 1', 'Key insight 2', 'Key insight 3'], estimatedWords: 800, isNew: false },
+        { id: '3', heading: 'Conclusion', keyPoints: ['Summary of key points', 'Call to action', 'Final thought'], estimatedWords: 200, isNew: false },
+      ]
+
+  const [outline, setOutline] = useState<OutlineSectionState[]>(initialOutline)
 
   const [isGenerating, setIsGenerating] = useState(false)
-  const [generationStep, setGenerationStep] = useState<'idle' | 'content' | 'faq' | 'polishing' | 'saving' | 'done' | 'error'>('idle')
+  const [generationStep, setGenerationStep] = useState<'idle' | 'content' | 'images' | 'faq' | 'polishing' | 'saving' | 'done' | 'error'>('idle')
   const [error, setError] = useState<string | null>(null)
 
-  // Normalize analysis data — the API returns different field names than the interface expects
-  const safeAnalysis = useMemo(() => ({
-    wordCount: analysis.wordCount ?? (analysis as any).currentWordCount ?? 0,
-    headings: analysis.headings ?? (analysis as any).currentHeadings ?? [],
-    links: analysis.links ?? 0,
-    images: analysis.images ?? 0,
-    claims: analysis.claims ?? ((analysis as any).citationOpportunities || []).map((c: any) => ({
-      text: c.claim || c.text || '',
-      citationIndex: c.citationId !== undefined && c.citationId !== 'none' ? parseInt(c.citationId) - 1 : undefined,
-    })),
-  }), [analysis])
-
   const citationMapping = useMemo(() => {
-    return (safeAnalysis.claims || []).map((claim: Claim, idx: number) => ({
+    return analysis.claims.map((claim, idx) => ({
       claim: claim.text,
       citationIndex: claim.citationIndex ?? -1,
       citation: claim.citationIndex !== undefined && claim.citationIndex >= 0 ? citations[claim.citationIndex] : null,
     }))
-  }, [safeAnalysis.claims, citations])
+  }, [analysis.claims, citations])
 
   const updateSectionHeading = (id: string, newHeading: string) => {
     setOutline(outline.map(s => (s.id === id ? { ...s, heading: newHeading } : s)))
@@ -210,24 +199,49 @@ export function RevampAnalysisView({
 
       const { bodyContent } = await contentRes.json()
 
-      // Step 2: Generate FAQ
-      setGenerationStep('faq')
-      const faqRes = await fetch('/api/revamp/generate/faq', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          keyword: settings.keyword,
-          category: settings.category,
-          titleTag: settings.keyword,
-        }),
-      })
+      // Step 2: Generate images + FAQ in parallel
+      setGenerationStep('images')
 
-      if (!faqRes.ok) {
-        const errorData = await faqRes.json().catch(() => ({}))
-        throw new Error(errorData.error || 'FAQ generation failed')
-      }
+      const [imageResult, faqResult] = await Promise.all([
+        // Image generation (optional — gracefully fails)
+        settings.includeImages !== false
+          ? fetch('/api/revamp/generate/images', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                bodyContent,
+                keyword: settings.keyword,
+                category: settings.category,
+                titleTag: settings.keyword,
+                maxImages: 3,
+              }),
+            }).then(res => res.ok ? res.json() : { bodyContent, images: [] })
+              .catch(() => ({ bodyContent, images: [] }))
+          : Promise.resolve({ bodyContent, images: [] }),
 
-      const { faqHtml, faqItems, faqSchema } = await faqRes.json()
+        // FAQ generation
+        (async () => {
+          setGenerationStep('faq')
+          const faqRes = await fetch('/api/revamp/generate/faq', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              keyword: settings.keyword,
+              category: settings.category,
+              titleTag: settings.keyword,
+            }),
+          })
+          if (!faqRes.ok) {
+            const errorData = await faqRes.json().catch(() => ({}))
+            throw new Error(errorData.error || 'FAQ generation failed')
+          }
+          return faqRes.json()
+        })(),
+      ])
+
+      // Use image-enhanced body content if available
+      const finalBodyContent = imageResult?.bodyContent || bodyContent
+      const { faqHtml, faqItems, faqSchema } = faqResult
 
       // Step 3: Finalize (assembly + polishing)
       setGenerationStep('polishing')
@@ -235,7 +249,7 @@ export function RevampAnalysisView({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          bodyContent,
+          bodyContent: finalBodyContent,
           faqHtml: faqHtml || '',
           faqItems: faqItems || [],
           faqSchema: faqSchema || '',
@@ -244,8 +258,10 @@ export function RevampAnalysisView({
           titleTag: settings.keyword,
           metaDescription: '',
           includeProducts: settings.includeProducts ?? true,
+          citations: citations || [],
           tone: settings.tone,
           wordCount: settings.wordCount,
+          videoUrl: settings.videoUrl || undefined,
         }),
       })
 
@@ -266,7 +282,7 @@ export function RevampAnalysisView({
         title: serverArticle.title,
         slug: serverArticle.slug,
         titleTag: serverArticle.titleTag || `${serverArticle.title} | Naked Nutrition`,
-        metaDescription: serverArticle.metaDescription || safeAnalysis.claims?.[0]?.text || serverArticle.title,
+        metaDescription: serverArticle.metaDescription || analysis.claims?.[0]?.text || serverArticle.title,
         content: serverArticle.content || '',
         htmlContent: serverArticle.htmlContent || '',
         featuredImage: serverArticle.featuredImage,
@@ -282,7 +298,7 @@ export function RevampAnalysisView({
           }),
         category: (serverArticle.category || settings.category) as any,
         keyword: serverArticle.keyword || settings.keyword,
-        wordCount: serverArticle.wordCount || safeAnalysis.wordCount,
+        wordCount: serverArticle.wordCount || analysis.wordCount,
         createdAt: new Date(serverArticle.createdAt || Date.now()),
         status: serverArticle.status || 'draft',
         articleType: 'revamp',
@@ -350,31 +366,31 @@ export function RevampAnalysisView({
                 <div className="flex justify-between text-[13px]" style={{ color: 'var(--text2)' }}>
                   <span>Word Count:</span>
                   <span className="font-mono font-medium" style={{ color: 'var(--text1)' }}>
-                    {(safeAnalysis.wordCount || 0).toLocaleString()}
+                    {analysis.wordCount.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex justify-between text-[13px]" style={{ color: 'var(--text2)' }}>
                   <span>Headings:</span>
                   <span className="font-mono font-medium" style={{ color: 'var(--text1)' }}>
-                    {(safeAnalysis.headings || []).length}
+                    {analysis.headings.length}
                   </span>
                 </div>
                 <div className="flex justify-between text-[13px]" style={{ color: 'var(--text2)' }}>
                   <span>Links:</span>
                   <span className="font-mono font-medium" style={{ color: 'var(--text1)' }}>
-                    {safeAnalysis.links}
+                    {analysis.links}
                   </span>
                 </div>
                 <div className="flex justify-between text-[13px]" style={{ color: 'var(--text2)' }}>
                   <span>Images:</span>
                   <span className="font-mono font-medium" style={{ color: 'var(--text1)' }}>
-                    {safeAnalysis.images}
+                    {analysis.images}
                   </span>
                 </div>
                 <div className="flex justify-between text-[13px]" style={{ color: 'var(--text2)' }}>
                   <span>Claims:</span>
                   <span className="font-mono font-medium" style={{ color: 'var(--text1)' }}>
-                    {(safeAnalysis.claims || []).length}
+                    {analysis.claims.length}
                   </span>
                 </div>
               </div>

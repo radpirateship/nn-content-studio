@@ -61,7 +61,9 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
     includeEmailCapture: false,
     includeCalculator: false,
     includeComparisonTable: false,
+    includeImages: true,
     calculatorType: 'creatine-dosage',
+    videoUrl: '',
   })
   const [isLoading, setIsLoading] = useState(false)
   const [shopifyQuery, setShopifyQuery] = useState('')
@@ -212,9 +214,7 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
         throw new Error('Failed to analyze article')
       }
 
-      const result = await response.json()
-      // The API returns { analysis: {...} } — unwrap it
-      const analysisData = result.analysis || result
+      const analysis = await response.json()
       const settingsData = {
         category,
         keyword,
@@ -223,7 +223,7 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
         ...settings,
       }
 
-      onAnalysisComplete(analysisData, articleContent, validCitations, settingsData)
+      onAnalysisComplete(analysis, articleContent, validCitations, settingsData)
     } catch (error) {
       console.error('Analysis failed:', error)
       alert('Failed to analyze article. Please try again.')
@@ -554,6 +554,7 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
               { key: 'includeFAQ', label: 'Include FAQ' },
               { key: 'includeEmailCapture', label: 'Include Email Capture' },
               { key: 'includeComparisonTable', label: 'Include Comparison Table' },
+              { key: 'includeImages', label: 'Generate AI Images (Gemini)' },
             ].map(({ key, label }) => (
               <label key={key} className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -615,6 +616,21 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
               </select>
             </div>
           )}
+
+          {/* Video URL */}
+          <div>
+            <label className="block text-[11px] font-mono uppercase tracking-[0.5px] mb-2" style={{ color: 'var(--text3)' }}>
+              Video URL (YouTube/Vimeo)
+            </label>
+            <input
+              type="url"
+              value={settings.videoUrl}
+              onChange={e => setSettings({ ...settings, videoUrl: e.target.value })}
+              placeholder="https://youtube.com/watch?v=..."
+              className="w-full px-3 py-2 rounded-lg border text-[12px]"
+              style={{ background: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text1)' }}
+            />
+          </div>
 
           {/* Special Instructions */}
           <div>

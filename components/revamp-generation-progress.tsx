@@ -1,10 +1,10 @@
 'use client'
 
 import React from 'react'
-import { Pencil, HelpCircle, Sparkles, Database, Check, Loader2, AlertCircle } from 'lucide-react'
+import { Pencil, HelpCircle, Sparkles, Database, Check, Loader2, AlertCircle, ImageIcon } from 'lucide-react'
 
 interface RevampGenerationProgressProps {
-  currentStep: 'idle' | 'content' | 'faq' | 'polishing' | 'saving' | 'done' | 'error'
+  currentStep: 'idle' | 'content' | 'images' | 'faq' | 'polishing' | 'saving' | 'done' | 'error'
   errorMessage?: string
 }
 
@@ -17,22 +17,29 @@ const STEPS = [
     icon: Pencil,
   },
   {
-    key: 'faq',
+    key: 'images',
     number: 2,
+    label: 'Generating Images',
+    description: 'Creating contextual infographics and illustrations via Gemini...',
+    icon: ImageIcon,
+  },
+  {
+    key: 'faq',
+    number: 3,
     label: 'Generating FAQ',
     description: 'Creating 8 targeted FAQ questions from real search queries...',
     icon: HelpCircle,
   },
   {
     key: 'polishing',
-    number: 3,
+    number: 4,
     label: 'Polishing & Assembly',
-    description: 'Adding navigation, product cards, and schema markup...',
+    description: 'Adding quick answer, product CTA, trust badges, testimonials...',
     icon: Sparkles,
   },
   {
     key: 'saving',
-    number: 4,
+    number: 5,
     label: 'Saving to Database',
     description: 'Saving your revamped article...',
     icon: Database,
