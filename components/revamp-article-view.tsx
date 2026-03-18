@@ -70,7 +70,6 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
   const [isLoadingBlogPosts, setIsLoadingBlogPosts] = useState(false)
   const [isUploadingCSV, setIsUploadingCSV] = useState(false)
-  const [isFetchingFromBlog, setIsFetchingFromBlog] = useState(false)
 
   const addCitation = () => {
     setCitations([...citations, { id: Date.now().toString(), url: '', title: '', notes: '' }])
@@ -160,27 +159,22 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
     }
   }
 
-  const revampBlogPost = async (post: BlogPost) => {
-    try {
-      setIsFetchingFromBlog(true)
-      const response = await fetch(`/api/shopify/blog/fetch?handle=${post.slug}`)
-
-      if (response.ok) {
-        const data = await response.json()
-        setArticleContent(data.body_html || '')
-      } else {
-        setArticleContent(post.url)
+  const revampBlogPost = (post: BlogPost) => {
+    // Shopify API access not available yet — set up paste tab with
+    // the article URL and pre-fill category/keyword so the user can
+    // copy-paste the HTML from Shopify admin manually
+    setArticleContent('')
+    setCategory(post.category)
+    setKeyword(post.slug.replace(/-/g, ' '))
+    setActiveTab('paste')
+    // Small delay so the tab switch renders, then focus the textarea
+    setTimeout(() => {
+      const textarea = document.querySelector<HTMLTextAreaElement>('textarea[placeholder*="Paste"]')
+      if (textarea) {
+        textarea.placeholder = `Paste the HTML for: ${post.url}\n\nOpen this URL in Shopify Admin → Blog posts → find this article → copy the HTML`
+        textarea.focus()
       }
-
-      setCategory(post.category)
-      setKeyword(post.slug.replace(/-/g, ' '))
-      setActiveTab('paste')
-    } catch (error) {
-      console.error('Failed to fetch article:', error)
-      setArticleContent(post.url)
-    } finally {
-      setIsFetchingFromBlog(false)
-    }
+    }, 100)
   }
 
   const formatSlugToTitle = (slug: string): string => {
@@ -307,54 +301,14 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
           )}
 
           {activeTab === 'shopify' && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-[12px] font-mono uppercase tracking-[0.5px] mb-2" style={{ color: 'var(--text3)' }}>
-                  Search Shopify Blog
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={shopifyQuery}
-                    onChange={e => setShopifyQuery(e.target.value)}
-                    onKeyPress={e => e.key === 'Enter' && searchShopify()}
-                    placeholder="Search by title..."
-                    className="flex-1 px-3 py-2 rounded-lg border text-[13px]"
-                    style={{ background: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text1)' }}
-                  />
-                  <button
-                    onClick={searchShopify}
-                    disabled={isSearching}
-                    className="px-3 py-2 rounded-lg text-[13px] font-medium text-white transition-all"
-                    style={{ background: 'var(--nn-accent)' }}
-                  >
-                    {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {shopifyResults.length > 0 && (
-                <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-                  {shopifyResults.map(article => (
-                    <button
-                      key={article.id}
-                      onClick={() => fetchFromShopify(article.id)}
-                      className="w-full text-left px-4 py-3 border-b hover:bg-opacity-50 transition-all"
-                      style={{
-                        background: 'var(--bg)',
-                        borderColor: 'var(--border)',
-                        color: 'var(--text1)',
-                        ':hover': { background: 'var(--surface)' },
-                      }}
-                    >
-                      <div className="text-[12px] font-medium">{article.title}</div>
-                      <div className="text-[11px] mt-0.5" style={{ color: 'var(--text3)' }}>
-                        {article.created_at}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Search className="h-8 w-8 mb-3" style={{ color: 'var(--text4)' }} />
+              <p className="text-[14px] font-medium mb-1" style={{ color: 'var(--text2)' }}>
+                Shopify API Integration
+              </p>
+              <p className="text-[12px] max-w-[320px]" style={{ color: 'var(--text4)' }}>
+                Direct Shopify blog search requires API access that is not yet configured. Use the <strong>Paste</strong> tab to paste article HTML, or use <strong>Browse</strong> to pick from your GSC data.
+              </p>
             </div>
           )}
 
