@@ -242,13 +242,19 @@ export default function ContentStudio() {
         try {
           let effectiveCategory = input.category
           const titleAndKeyword = `${input.title} ${input.keyword}`.toLowerCase()
-          if (input.category === 'general-wellness' || effectiveCategory === 'general-wellness') {
-            if (titleAndKeyword.includes('float') || titleAndKeyword.includes('sensory deprivation')) effectiveCategory = 'sensory-deprivation-tanks'
-            else if (titleAndKeyword.includes('sauna') || titleAndKeyword.includes('infrared')) effectiveCategory = 'saunas'
-            else if (titleAndKeyword.includes('cold plunge') || titleAndKeyword.includes('ice bath')) effectiveCategory = 'cold-plunge'
-            else if (titleAndKeyword.includes('red light') || titleAndKeyword.includes('light therapy')) effectiveCategory = 'red-light-therapy'
-            else if (titleAndKeyword.includes('hyperbaric') || titleAndKeyword.includes('oxygen chamber')) effectiveCategory = 'hyperbaric-chambers'
-            else if (titleAndKeyword.includes('massage')) effectiveCategory = 'massage-equipment'
+          if (input.category === 'general-nutrition' || effectiveCategory === 'general-nutrition') {
+            if (titleAndKeyword.includes('whey') || titleAndKeyword.includes('whey protein')) effectiveCategory = 'whey-protein'
+            else if (titleAndKeyword.includes('casein')) effectiveCategory = 'casein-protein'
+            else if (titleAndKeyword.includes('pea protein') || titleAndKeyword.includes('plant protein')) effectiveCategory = 'pea-protein'
+            else if (titleAndKeyword.includes('creatine')) effectiveCategory = 'creatine'
+            else if (titleAndKeyword.includes('pre-workout') || titleAndKeyword.includes('pre workout')) effectiveCategory = 'pre-workout'
+            else if (titleAndKeyword.includes('collagen')) effectiveCategory = 'collagen'
+            else if (titleAndKeyword.includes('greens') || titleAndKeyword.includes('superfood')) effectiveCategory = 'greens'
+            else if (titleAndKeyword.includes('mass gainer') || titleAndKeyword.includes('weight gain')) effectiveCategory = 'mass-gainer'
+            else if (titleAndKeyword.includes('bcaa') || titleAndKeyword.includes('amino acid')) effectiveCategory = 'bcaa'
+            else if (titleAndKeyword.includes('probiotic') || titleAndKeyword.includes('gut health')) effectiveCategory = 'probiotics'
+            else if (titleAndKeyword.includes('keto') || titleAndKeyword.includes('low carb')) effectiveCategory = 'keto'
+            else if (titleAndKeyword.includes('vegan')) effectiveCategory = 'vegan'
           }
           const searchParam = encodeURIComponent(`${input.title} ${input.keyword}`)
           const productsResponse = await fetch(`/api/products?category=${effectiveCategory}&search=${searchParam}&limit=4`)

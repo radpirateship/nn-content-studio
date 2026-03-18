@@ -41,10 +41,11 @@ const WORD_COUNT_OPTIONS = [
 ] as const
 
 const COLLECTIONS = [
-  'Hydrogen Water', 'Water Ionizers', 'Hyperbaric Chambers', 'Red Light Therapy',
-  'Cold Plunges', 'Pilates', 'Saunas', 'Sauna Heaters', 'Massage Equipment', 'Compression Boots',
-  'Sensory Deprivation Tanks', 'Steam',
-  'Elliptical Machines', 'Exercise Bikes', 'Treadmills', 'Stair Climbers', 'Vertical Climbers', 'Air Filters',
+  'Whey Protein', 'Casein Protein', 'Pea Protein', 'Rice Protein',
+  'Creatine', 'Mass Gainer', 'Pre-Workout', 'Post-Workout Recovery',
+  'BCAAs & Amino Acids', 'Collagen', 'Greens & Superfoods', 'Fiber & Digestive Health',
+  'Vitamins & Minerals', 'Probiotics', 'Energy & Focus',
+  'Weight Management', 'Keto & Low-Carb', 'Vegan Nutrition', 'General Nutrition',
 ] as const
 
 const PRESETS = [
@@ -70,7 +71,7 @@ export function NewArticleView({ onGenerate, isGenerating }: NewArticleViewProps
     title: '',
     keyword: '',
     collection: '',
-    category: 'general-wellness' as string,
+    category: 'general-nutrition' as string,
     articleType: 'buyers-guide',
     tone: 'educational' as ArticleTone,
     audience: 'general',
@@ -110,18 +111,18 @@ export function NewArticleView({ onGenerate, isGenerating }: NewArticleViewProps
     if (!formData.title || !formData.keyword) return
     // Map collection name to category slug for ArticleInput
     const collectionToCategory: Record<string, string> = {
-      'Hydrogen Water': 'hydrogen-water', 'Water Ionizers': 'water-ionizers',
-      'Hyperbaric Chambers': 'hyperbaric-chambers', 'Red Light Therapy': 'red-light-therapy',
-      'Cold Plunges': 'cold-plunges', 'Pilates': 'pilates',
-      'Saunas': 'saunas', 'Barrel Saunas': 'barrel-saunas', 'Sauna Heaters': 'saunas',
-      'Massage Equipment': 'massage-equipment', 'Massage': 'massage-equipment', 'Massage Chairs': 'massage-equipment',
-      'Compression Boots': 'compression-boots',
-      'Sensory Deprivation Tanks': 'sensory-deprivation-tanks', 'Steam': 'steam',
-      'Elliptical Machines': 'elliptical-machines', 'Exercise Bikes': 'exercise-bikes',
-      'Treadmills': 'treadmills', 'Stair Climbers': 'stair-climbers', 'Vertical Climbers': 'vertical-climbers',
-      'Air Filters': 'air-filters',
+      'Whey Protein': 'whey-protein', 'Casein Protein': 'casein-protein',
+      'Pea Protein': 'pea-protein', 'Rice Protein': 'rice-protein',
+      'Creatine': 'creatine', 'Mass Gainer': 'mass-gainer',
+      'Pre-Workout': 'pre-workout', 'Post-Workout Recovery': 'post-workout',
+      'BCAAs & Amino Acids': 'bcaa', 'Collagen': 'collagen',
+      'Greens & Superfoods': 'greens', 'Fiber & Digestive Health': 'fiber',
+      'Vitamins & Minerals': 'vitamins', 'Probiotics': 'probiotics',
+      'Energy & Focus': 'energy', 'Weight Management': 'weight-management',
+      'Keto & Low-Carb': 'keto', 'Vegan Nutrition': 'vegan',
+      'General Nutrition': 'general-nutrition',
     }
-    const category = collectionToCategory[formData.collection] || 'general-wellness'
+    const category = collectionToCategory[formData.collection] || 'general-nutrition'
     onGenerate({
       title: formData.title,
       keyword: formData.keyword,
@@ -252,7 +253,7 @@ export function NewArticleView({ onGenerate, isGenerating }: NewArticleViewProps
                   type="text"
                   value={formData.title}
                   onChange={(e) => handleChange('title', e.target.value)}
-                  placeholder="e.g. Best Infrared Saunas for Home Use in 2025"
+                  placeholder="e.g. Best Whey Protein Powders for Muscle Growth in 2026"
                   className={`${inputBase} ${focusStyle}`}
                   style={inputStyle}
                 />
@@ -277,7 +278,7 @@ export function NewArticleView({ onGenerate, isGenerating }: NewArticleViewProps
                     type="text"
                     value={formData.keyword}
                     onChange={(e) => handleChange('keyword', e.target.value)}
-                    placeholder="e.g. best infrared saunas"
+                    placeholder="e.g. best whey protein powder"
                     className={`${inputBase} ${focusStyle}`}
                     style={inputStyle}
                   />
@@ -297,7 +298,7 @@ export function NewArticleView({ onGenerate, isGenerating }: NewArticleViewProps
                     type="text"
                     value={formData.shopifySlug}
                     onChange={(e) => handleChange('shopifySlug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-'))}
-                    placeholder="best-infrared-saunas-for-home"
+                    placeholder="best-whey-protein-for-muscle-growth"
                     className={`${inputBase} ${focusStyle} rounded-l-none`}
                     style={inputStyle}
                   />
@@ -322,7 +323,7 @@ export function NewArticleView({ onGenerate, isGenerating }: NewArticleViewProps
                   type="text"
                   value={formData.titleTag}
                   onChange={(e) => handleChange('titleTag', e.target.value)}
-                  placeholder="e.g. Best Infrared Saunas for Home Use (2026) | Naked Nutrition"
+                  placeholder="e.g. Best Whey Protein Powders for Muscle Growth (2026) | Naked Nutrition"
                   className={`${inputBase} ${focusStyle}`}
                   style={inputStyle}
                 />
@@ -338,7 +339,7 @@ export function NewArticleView({ onGenerate, isGenerating }: NewArticleViewProps
                 <textarea
                   value={formData.metaDescription}
                   onChange={(e) => handleChange('metaDescription', e.target.value)}
-                  placeholder="e.g. Discover the top infrared saunas for your home. Compare features, prices, and health benefits in our expert guide."
+                  placeholder="e.g. Compare the best whey protein powders for building muscle. See ingredients, nutrition facts, and expert picks from Naked Nutrition."
                   rows={2}
                   className={`${inputBase} ${focusStyle} resize-none`}
                   style={inputStyle}
@@ -456,7 +457,7 @@ export function NewArticleView({ onGenerate, isGenerating }: NewArticleViewProps
                   value={formData.specialInstructions}
                   onChange={(e) => handleChange('specialInstructions', e.target.value)}
                   rows={3}
-                  placeholder="e.g. Focus on 2-person saunas under $5,000. Mention Joe Rogan's sauna protocol. Include electrical requirements section."
+                  placeholder="e.g. Focus on grass-fed options under $50. Mention leucine content per serving. Include a section on timing around workouts."
                   className={`${inputBase} ${focusStyle} resize-y`}
                   style={{ ...inputStyle, minHeight: '68px' }}
                 />

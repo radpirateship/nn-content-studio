@@ -17,17 +17,27 @@ export interface Product {
   url?: string;
 }
 
-// Category keywords for wellness equipment matching
+// Category keywords for supplement matching
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  'sensory-deprivation-tanks': ['float', 'sensory deprivation', 'isolation tank', 'flotation', 'float tank', 'float pod'],
-  'saunas': ['sauna', 'infrared sauna', 'barrel sauna', 'traditional sauna'],
-  'cold-plunge': ['cold plunge', 'ice bath', 'cold tub', 'cold therapy', 'cryotherapy'],
-  'red-light-therapy': ['red light', 'led therapy', 'photobiomodulation', 'light therapy panel'],
-  'hyperbaric-chambers': ['hyperbaric', 'oxygen chamber', 'hbot'],
-  'massage-equipment': ['massage', 'percussion', 'theragun', 'massage chair', 'massage gun'],
-  'recovery-tools': ['recovery', 'compression', 'normatec', 'foam roller'],
-  'general-wellness': ['wellness', 'health', 'fitness'],
-  'steam': ['steam shower', 'steam generator', 'steam room', 'mrsteam', 'kohler steam', 'thermasol', 'towel warmer', 'steam bath']
+  'whey-protein': ['whey', 'whey protein', 'whey isolate', 'whey concentrate', 'grass-fed whey'],
+  'casein-protein': ['casein', 'casein protein', 'micellar casein', 'slow-release protein'],
+  'pea-protein': ['pea protein', 'plant protein', 'plant-based protein', 'hemp protein', 'vegan protein'],
+  'rice-protein': ['rice protein', 'brown rice protein'],
+  'creatine': ['creatine', 'creatine monohydrate', 'creatine hcl'],
+  'mass-gainer': ['mass gainer', 'weight gainer', 'mass builder', 'bulking'],
+  'pre-workout': ['pre-workout', 'pre workout', 'energy boost', 'pump formula', 'caffeine'],
+  'post-workout': ['post-workout', 'post workout', 'recovery', 'recovery formula'],
+  'bcaa': ['bcaa', 'branched chain', 'amino acid', 'eaa', 'essential amino'],
+  'collagen': ['collagen', 'collagen peptides', 'hydrolyzed collagen', 'collagen protein'],
+  'greens': ['greens', 'superfood', 'green powder', 'spirulina', 'chlorella', 'vegetable powder'],
+  'fiber': ['fiber', 'psyllium', 'digestive health', 'prebiotic fiber', 'inulin'],
+  'vitamins': ['vitamin', 'mineral', 'multivitamin', 'vitamin d', 'vitamin c', 'zinc', 'magnesium'],
+  'probiotics': ['probiotic', 'lactobacillus', 'bifidobacterium', 'gut health', 'digestive enzyme'],
+  'energy': ['energy', 'focus', 'nootropic', 'mental clarity', 'caffeine pill'],
+  'weight-management': ['weight loss', 'fat burner', 'thermogenic', 'appetite', 'metabolism'],
+  'keto': ['keto', 'ketogenic', 'low carb', 'mct oil', 'mct powder'],
+  'vegan': ['vegan', 'plant-based', 'dairy-free', 'vegan nutrition'],
+  'general-nutrition': ['nutrition', 'supplement', 'health', 'wellness'],
 };
 
 class ProductStore {

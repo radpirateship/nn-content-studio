@@ -171,11 +171,20 @@ export function RevampAnalysisView({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          editedOutline: outline,
-          originalContent,
+          existingContent: originalContent,
+          approvedOutline: outline.map(s => ({
+            heading: s.heading,
+            keyPoints: s.keyPoints,
+            isNew: s.isNew,
+          })),
           citations,
-          settings,
-          analysis,
+          category: settings.category,
+          keyword: settings.keyword,
+          tone: settings.tone,
+          wordCount: settings.wordCount,
+          includeProducts: settings.includeProducts ?? true,
+          includeFAQ: settings.includeFAQ ?? true,
+          includeEmailCapture: true,
         }),
       })
 
@@ -184,52 +193,42 @@ export function RevampAnalysisView({
         throw new Error(errorData.error || `Generation failed: ${response.statusText}`)
       }
 
-      const generationResult = await response.json()
+      const { article: serverArticle } = await response.json()
 
-      // Extract first H1 from generated content for title
-      const h1Match = generationResult.htmlContent?.match(/<h1[^>]*>(.*?)<\/h1>/i)
-      const generatedTitle = h1Match ? h1Match[1].replace(/<[^>]*>/g, '') : settings.keyword || 'Revamped Article'
-
-      // Construct GeneratedArticle
+      // The route now saves to DB and returns the full article object
       const article: GeneratedArticle = {
-        id: `revamp-${Date.now()}`,
-        title: generatedTitle,
-        slug: generateSlug(generatedTitle),
-        titleTag: generationResult.titleTag || `${generatedTitle} | Naked Nutrition`,
-        metaDescription: generationResult.metaDescription || analysis.claims[0]?.text || generatedTitle,
-        content: generationResult.content || generationResult.htmlContent || '',
-        htmlContent: generationResult.htmlContent || '',
-        featuredImage: undefined,
-        contentImages: (generationResult.images as GeneratedImage[]) || [],
-        products: (generationResult.products as Product[]) || [],
-        faqs: (generationResult.faqs as FAQItem[]) || [],
-        schemaMarkup: generateSchemaMarkup({
-          title: generatedTitle,
+        id: serverArticle.id,
+        dbId: serverArticle.dbId,
+        title: serverArticle.title,
+        slug: serverArticle.slug,
+        titleTag: serverArticle.titleTag || `${serverArticle.title} | Naked Nutrition`,
+        metaDescription: serverArticle.metaDescription || analysis.claims[0]?.text || serverArticle.title,
+        content: serverArticle.content || '',
+        htmlContent: serverArticle.htmlContent || '',
+        featuredImage: serverArticle.featuredImage,
+        contentImages: serverArticle.contentImages || [],
+        products: serverArticle.products || [],
+        faqs: serverArticle.faqs || [],
+        schemaMarkup: serverArticle.schemaMarkup || generateSchemaMarkup({
+          title: serverArticle.title,
           keyword: settings.keyword,
           category: settings.category as any,
         }),
-        category: settings.category as any,
-        keyword: settings.keyword,
-        wordCount: generationResult.wordCount || analysis.wordCount,
-        createdAt: new Date(),
-        status: 'reviewing' as const,
+        category: serverArticle.category || settings.category as any,
+        keyword: serverArticle.keyword || settings.keyword,
+        wordCount: serverArticle.wordCount || analysis.wordCount,
+        createdAt: new Date(serverArticle.createdAt || Date.now()),
+        status: serverArticle.status || 'draft',
         articleType: 'revamp',
-        hasInternalLinks: (generationResult.links || 0) > 0,
-        hasImages: (generationResult.images || []).length > 0,
-        linkCount: generationResult.links || 0,
-        imageCount: (generationResult.images || []).length,
+        hasInternalLinks: serverArticle.hasInternalLinks || false,
+        hasImages: serverArticle.hasImages || false,
+        linkCount: serverArticle.linkCount || 0,
+        imageCount: serverArticle.imageCount || 0,
         sourceType: 'revamp' as const,
       }
 
-      // Save to database
-      const dbResult = await saveArticleToDb(article)
-      const finalArticle: GeneratedArticle = {
-        ...article,
-        dbId: dbResult.dbId,
-      }
-
-      // Callback
-      onGenerateComplete(finalArticle)
+      // Callback — DB save already happened server-side
+      onGenerateComplete(article)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Generation failed')
       setIsGenerating(false)
