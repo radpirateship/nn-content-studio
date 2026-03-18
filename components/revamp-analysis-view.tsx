@@ -89,13 +89,25 @@ export function RevampAnalysisView({
   const [generationStep, setGenerationStep] = useState<'idle' | 'content' | 'faq' | 'polishing' | 'saving' | 'done' | 'error'>('idle')
   const [error, setError] = useState<string | null>(null)
 
+  // Normalize analysis data — the API returns different field names than the interface expects
+  const safeAnalysis = useMemo(() => ({
+    wordCount: analysis.wordCount ?? (analysis as any).currentWordCount ?? 0,
+    headings: analysis.headings ?? (analysis as any).currentHeadings ?? [],
+    links: analysis.links ?? 0,
+    images: analysis.images ?? 0,
+    claims: analysis.claims ?? ((analysis as any).citationOpportunities || []).map((c: any) => ({
+      text: c.claim || c.text || '',
+      citationIndex: c.citationId !== undefined && c.citationId !== 'none' ? parseInt(c.citationId) - 1 : undefined,
+    })),
+  }), [analysis])
+
   const citationMapping = useMemo(() => {
-    return analysis.claims.map((claim, idx) => ({
+    return (safeAnalysis.claims || []).map((claim: Claim, idx: number) => ({
       claim: claim.text,
       citationIndex: claim.citationIndex ?? -1,
       citation: claim.citationIndex !== undefined && claim.citationIndex >= 0 ? citations[claim.citationIndex] : null,
     }))
-  }, [analysis.claims, citations])
+  }, [safeAnalysis.claims, citations])
 
   const updateSectionHeading = (id: string, newHeading: string) => {
     setOutline(outline.map(s => (s.id === id ? { ...s, heading: newHeading } : s)))
@@ -254,7 +266,7 @@ export function RevampAnalysisView({
         title: serverArticle.title,
         slug: serverArticle.slug,
         titleTag: serverArticle.titleTag || `${serverArticle.title} | Naked Nutrition`,
-        metaDescription: serverArticle.metaDescription || analysis.claims?.[0]?.text || serverArticle.title,
+        metaDescription: serverArticle.metaDescription || safeAnalysis.claims?.[0]?.text || serverArticle.title,
         content: serverArticle.content || '',
         htmlContent: serverArticle.htmlContent || '',
         featuredImage: serverArticle.featuredImage,
@@ -270,7 +282,7 @@ export function RevampAnalysisView({
           }),
         category: (serverArticle.category || settings.category) as any,
         keyword: serverArticle.keyword || settings.keyword,
-        wordCount: serverArticle.wordCount || analysis.wordCount,
+        wordCount: serverArticle.wordCount || safeAnalysis.wordCount,
         createdAt: new Date(serverArticle.createdAt || Date.now()),
         status: serverArticle.status || 'draft',
         articleType: 'revamp',
@@ -338,31 +350,31 @@ export function RevampAnalysisView({
                 <div className="flex justify-between text-[13px]" style={{ color: 'var(--text2)' }}>
                   <span>Word Count:</span>
                   <span className="font-mono font-medium" style={{ color: 'var(--text1)' }}>
-                    {analysis.wordCount.toLocaleString()}
+                    {(safeAnalysis.wordCount || 0).toLocaleString()}
                   </span>
                 </div>
                 <div className="flex justify-between text-[13px]" style={{ color: 'var(--text2)' }}>
                   <span>Headings:</span>
                   <span className="font-mono font-medium" style={{ color: 'var(--text1)' }}>
-                    {analysis.headings.length}
+                    {(safeAnalysis.headings || []).length}
                   </span>
                 </div>
                 <div className="flex justify-between text-[13px]" style={{ color: 'var(--text2)' }}>
                   <span>Links:</span>
                   <span className="font-mono font-medium" style={{ color: 'var(--text1)' }}>
-                    {analysis.links}
+                    {safeAnalysis.links}
                   </span>
                 </div>
                 <div className="flex justify-between text-[13px]" style={{ color: 'var(--text2)' }}>
                   <span>Images:</span>
                   <span className="font-mono font-medium" style={{ color: 'var(--text1)' }}>
-                    {analysis.images}
+                    {safeAnalysis.images}
                   </span>
                 </div>
                 <div className="flex justify-between text-[13px]" style={{ color: 'var(--text2)' }}>
                   <span>Claims:</span>
                   <span className="font-mono font-medium" style={{ color: 'var(--text1)' }}>
-                    {analysis.claims.length}
+                    {(safeAnalysis.claims || []).length}
                   </span>
                 </div>
               </div>

@@ -212,7 +212,9 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
         throw new Error('Failed to analyze article')
       }
 
-      const analysis = await response.json()
+      const result = await response.json()
+      // The API returns { analysis: {...} } — unwrap it
+      const analysisData = result.analysis || result
       const settingsData = {
         category,
         keyword,
@@ -221,7 +223,7 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
         ...settings,
       }
 
-      onAnalysisComplete(analysis, articleContent, validCitations, settingsData)
+      onAnalysisComplete(analysisData, articleContent, validCitations, settingsData)
     } catch (error) {
       console.error('Analysis failed:', error)
       alert('Failed to analyze article. Please try again.')
