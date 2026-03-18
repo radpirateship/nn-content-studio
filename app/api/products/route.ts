@@ -263,27 +263,59 @@ export async function POST(request: NextRequest) {
       const lines = text.split("\n");
       if (lines.length < 2) return NextResponse.json({ error: "CSV file is empty or invalid" }, { status: 400 });
       const headers = parseCSVLine(lines[0]);
+      // Build a case-insensitive header lookup so both Shopify export format
+      // (Title, Handle, Body (HTML), Variant Price, Image Src) and NN custom
+      // format (title, handle, description, price, imageUrl) work
+      const headerLower: Record<string, string> = {};
+      headers.forEach((h) => { headerLower[h.trim().toLowerCase()] = h.trim(); });
+      const col = (keys: string[]): string => {
+        for (const k of keys) {
+          const found = headerLower[k.toLowerCase()];
+          if (found) return found;
+        }
+        return "";
+      };
+      const hTitle = col(["Title", "title"]);
+      const hHandle = col(["Handle", "handle"]);
+      const hDesc = col(["Body (HTML)", "Body HTML", "description"]);
+      const hPrice = col(["Variant Price", "price"]);
+      const hCompare = col(["Variant Compare At Price", "compareAtPrice", "compare_at_price"]);
+      const hSku = col(["Variant SKU", "sku"]);
+      const hVendor = col(["Vendor", "vendor"]);
+      const hType = col(["Product Type", "Type", "productType", "product_type"]);
+      const hTags = col(["Tags", "tags"]);
+      const hCategory = col(["Product Type", "Type", "category"]);
+      const hImage = col(["Image Src", "imageUrl", "image_url"]);
+      const hStatus = col(["Status", "status"]);
+      const hInv = col(["Total Inventory Qty", "Variant Inventory Qty", "inventoryQty", "inventory_qty"]);
+      const hUrl = col(["URL", "url"]);
+      const hId = col(["ID", "id"]);
+
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
         const values = parseCSVLine(line);
         const product: Record<string, string> = {};
         headers.forEach((header, index) => { product[header.trim()] = values[index]?.trim() || ""; });
-        const title = product["Title"] || "";
-        const handle = product["Handle"] || "";
+        const title = (hTitle ? product[hTitle] : "") || "";
+        const handle = (hHandle ? product[hHandle] : "") || "";
         if (!title && products.length > 0 && products[products.length - 1].handle === handle) continue;
         if (title) {
           products.push({
-            id: product["ID"] || handle || `product-${i}`, title,
-            description: product["Body (HTML)"] || product["Body HTML"] || "",
-            price: product["Variant Price"] || "", compareAtPrice: product["Variant Compare At Price"] || "",
-            sku: product["Variant SKU"] || "", vendor: product["Vendor"] || "",
-            productType: product["Product Type"] || product["Type"] || "",
-            tags: product["Tags"] || "", category: product["Product Type"] || product["Type"] || "",
-            imageUrl: product["Image Src"] || "", handle,
-            status: product["Status"] || "active",
-            inventoryQty: product["Total Inventory Qty"] || product["Variant Inventory Qty"] || "",
-            url: product["URL"] || "",
+            id: (hId ? product[hId] : "") || handle || `product-${i}`, title,
+            description: (hDesc ? product[hDesc] : "") || "",
+            price: (hPrice ? product[hPrice] : "") || "",
+            compareAtPrice: (hCompare ? product[hCompare] : "") || "",
+            sku: (hSku ? product[hSku] : "") || "",
+            vendor: (hVendor ? product[hVendor] : "") || "",
+            productType: (hType ? product[hType] : "") || "",
+            tags: (hTags ? product[hTags] : "") || "",
+            category: (hCategory ? product[hCategory] : "") || "",
+            imageUrl: (hImage ? product[hImage] : "") || "",
+            handle,
+            status: (hStatus ? product[hStatus] : "") || "active",
+            inventoryQty: (hInv ? product[hInv] : "") || "",
+            url: (hUrl ? product[hUrl] : "") || "",
           });
         }
       }

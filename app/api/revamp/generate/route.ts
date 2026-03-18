@@ -8,7 +8,7 @@ import { getSQL } from "@/lib/db"
 import { productStore } from "@/lib/product-store"
 import { CATEGORY_LABELS } from "@/lib/nn-categories"
 import { NN_STYLES } from "@/lib/nn-template"
-import { v4 as uuidv4 } from "uuid"
+import { randomUUID } from "crypto"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -714,7 +714,7 @@ ${faqSchema}`.trim()
     // ── Build response ───────────────────────────────────────────────────────
 
     const article = {
-      id: uuidv4(),
+      id: randomUUID(),
       dbId,
       title,
       slug,
