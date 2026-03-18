@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowRight, Plus, X, Search, Loader2 } from 'lucide-react'
+import { ArrowRight, Plus, X, Search, Loader2, Upload } from 'lucide-react'
 
 interface RevampArticleViewProps {
   onAnalysisComplete: (
@@ -17,6 +17,19 @@ interface Citation {
   url: string
   title?: string
   notes?: string
+}
+
+interface BlogPost {
+  id: number
+  url: string
+  section: string
+  slug: string
+  category: string
+  clicks: number
+  impressions: number
+  ctr: number
+  position: number
+  created_at: string
 }
 
 const NN_CATEGORIES = [
@@ -35,7 +48,7 @@ const NN_CATEGORIES = [
 ]
 
 export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps) {
-  const [activeTab, setActiveTab] = useState<'paste' | 'shopify'>('paste')
+  const [activeTab, setActiveTab] = useState<'paste' | 'shopify' | 'browse'>('paste')
   const [articleContent, setArticleContent] = useState('')
   const [citations, setCitations] = useState<Citation[]>([{ id: '1', url: '', title: '', notes: '' }])
   const [category, setCategory] = useState(NN_CATEGORIES[0])
@@ -54,6 +67,10 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
   const [shopifyQuery, setShopifyQuery] = useState('')
   const [shopifyResults, setShopifyResults] = useState<any[]>([])
   const [isSearching, setIsSearching] = useState(false)
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
+  const [isLoadingBlogPosts, setIsLoadingBlogPosts] = useState(false)
+  const [isUploadingCSV, setIsUploadingCSV] = useState(false)
+  const [isFetchingFromBlog, setIsFetchingFromBlog] = useState(false)
 
   const addCitation = () => {
     setCitations([...citations, { id: Date.now().toString(), url: '', title: '', notes: '' }])
@@ -99,6 +116,78 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
     } catch (error) {
       console.error('Failed to fetch article from Shopify:', error)
     }
+  }
+
+  const fetchBlogPosts = async () => {
+    setIsLoadingBlogPosts(true)
+    try {
+      const response = await fetch('/api/blog-posts?sort=clicks&limit=100')
+      if (response.ok) {
+        const data = await response.json()
+        setBlogPosts(data.data || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch blog posts:', error)
+    } finally {
+      setIsLoadingBlogPosts(false)
+    }
+  }
+
+  const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setIsUploadingCSV(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch('/api/blog-posts', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (response.ok) {
+        await fetchBlogPosts()
+      } else {
+        console.error('Failed to upload CSV')
+      }
+    } catch (error) {
+      console.error('CSV upload failed:', error)
+    } finally {
+      setIsUploadingCSV(false)
+      event.target.value = ''
+    }
+  }
+
+  const revampBlogPost = async (post: BlogPost) => {
+    try {
+      setIsFetchingFromBlog(true)
+      const response = await fetch(`/api/shopify/blog/fetch?handle=${post.slug}`)
+
+      if (response.ok) {
+        const data = await response.json()
+        setArticleContent(data.body_html || '')
+      } else {
+        setArticleContent(post.url)
+      }
+
+      setCategory(post.category)
+      setKeyword(post.slug.replace(/-/g, ' '))
+      setActiveTab('paste')
+    } catch (error) {
+      console.error('Failed to fetch article:', error)
+      setArticleContent(post.url)
+    } finally {
+      setIsFetchingFromBlog(false)
+    }
+  }
+
+  const formatSlugToTitle = (slug: string): string => {
+    return slug
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
   }
 
   const handleAnalyze = async () => {
@@ -183,6 +272,21 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
           >
             Fetch from Shopify
           </button>
+          <button
+            onClick={() => {
+              setActiveTab('browse')
+              if (blogPosts.length === 0) {
+                fetchBlogPosts()
+              }
+            }}
+            className="px-4 py-2.5 text-[12px] font-medium border-b-[2px] transition-all"
+            style={{
+              color: activeTab === 'browse' ? 'var(--nn-accent)' : 'var(--text3)',
+              borderBottomColor: activeTab === 'browse' ? 'var(--nn-accent)' : 'transparent',
+            }}
+          >
+            Browse
+          </button>
         </div>
 
         {/* Tab Content */}
@@ -249,6 +353,106 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
                       </div>
                     </button>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'browse' && (
+            <div className="space-y-4">
+              {/* Upload Area */}
+              <div className="p-4 rounded-lg border-2 border-dashed" style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}>
+                <label className="block cursor-pointer">
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleCSVUpload}
+                    disabled={isUploadingCSV}
+                    className="hidden"
+                  />
+                  <div className="flex flex-col items-center justify-center py-4 text-center">
+                    <Upload className="h-5 w-5 mb-2" style={{ color: 'var(--text3)' }} />
+                    <div className="text-[13px] font-medium" style={{ color: 'var(--text2)' }}>
+                      {isUploadingCSV ? 'Uploading...' : 'Upload GSC data (nn-blog-posts.csv)'}
+                    </div>
+                    <div className="text-[11px] mt-0.5" style={{ color: 'var(--text3)' }}>
+                      Click to browse
+                    </div>
+                  </div>
+                </label>
+              </div>
+
+              {/* Blog Posts List */}
+              {blogPosts.length > 0 && (
+                <div>
+                  <div className="text-[13px] font-mono mb-3" style={{ color: 'var(--text2)' }}>
+                    {blogPosts.length} blog posts loaded — sorted by clicks
+                  </div>
+
+                  <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                    {blogPosts.map(post => (
+                      <div
+                        key={post.id}
+                        className="p-3 rounded-lg border hover:border-opacity-100 transition-all"
+                        style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-[13px] font-medium leading-snug" style={{ color: 'var(--text1)' }}>
+                              {formatSlugToTitle(post.slug)}
+                            </h3>
+                            {post.category && (
+                              <div className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-medium" style={{ background: 'var(--surface)', color: 'var(--text2)' }}>
+                                {post.category.replace(/-/g, ' ')}
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => revampBlogPost(post)}
+                            disabled={isFetchingFromBlog}
+                            className="px-2.5 py-1 rounded text-[11px] font-medium text-white transition-all flex-shrink-0"
+                            style={{ background: 'var(--nn-accent)', opacity: isFetchingFromBlog ? 0.7 : 1 }}
+                          >
+                            {isFetchingFromBlog ? 'Loading...' : 'Revamp This'}
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-3 text-[11px] font-mono">
+                          <div>
+                            <div style={{ color: 'var(--text4)' }}>Clicks</div>
+                            <div className="font-semibold" style={{ color: 'var(--text1)' }}>
+                              {post.clicks.toLocaleString()}
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ color: 'var(--text4)' }}>Impressions</div>
+                            <div className="font-semibold" style={{ color: 'var(--text1)' }}>
+                              {post.impressions.toLocaleString()}
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ color: 'var(--text4)' }}>Position</div>
+                            <div className="font-semibold" style={{ color: 'var(--text1)' }}>
+                              {post.position > 0 ? post.position.toFixed(1) : '-'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {isLoadingBlogPosts && (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-5 w-5 animate-spin" style={{ color: 'var(--text3)' }} />
+                </div>
+              )}
+
+              {!isLoadingBlogPosts && blogPosts.length === 0 && (
+                <div className="py-8 text-center" style={{ color: 'var(--text3)' }}>
+                  <p className="text-[13px]">No blog posts loaded yet.</p>
+                  <p className="text-[12px] mt-1">Upload a CSV file to get started.</p>
                 </div>
               )}
             </div>
