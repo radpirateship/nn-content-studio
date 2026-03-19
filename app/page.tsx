@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { toast } from 'sonner'
 import { AppTopbar } from '@/components/app-topbar'
 import { AppSidebar, type ViewId } from '@/components/app-sidebar'
 import { NewArticleView, type RunMode } from '@/components/new-article-view'
@@ -22,6 +23,7 @@ import { PublishConfirmView } from '@/components/publish-confirm-view'
 import { ArticleWorkshopView } from '@/components/article-workshop-view'
 import { RevampArticleView } from '@/components/revamp-article-view'
 import { RevampAnalysisView } from '@/components/revamp-analysis-view'
+import { GuideView } from '@/components/guide-view'
 import { BarChart3, Clock, Layers, Zap } from 'lucide-react'
 import type { ArticleInput, ArticleStatus, GeneratedArticle, GenerationStep, Product } from '@/lib/types'
 
@@ -78,7 +80,8 @@ export default function ContentStudio() {
           setArticles(articlesWithDates)
         }
       } catch (error) {
-        console.error('Failed to load articles:', error)
+        console.error('[loadArticles] Failed to load articles from DB:', error)
+        toast.error('Failed to load articles from database')
       }
     }
     loadArticles()
@@ -102,7 +105,9 @@ export default function ContentStudio() {
               }))
           )
         }
-      } catch {}
+      } catch (error) {
+        console.warn('[loadCollections] Failed to load collection links:', error)
+      }
     }
     loadCollections()
   }, [])
@@ -131,7 +136,8 @@ export default function ContentStudio() {
         return saved.id
       }
     } catch (error) {
-      console.error('Failed to save article:', error)
+      console.error('[saveArticleToDb] Failed to save article:', error)
+      toast.error('Failed to save article to database')
     }
     return null
   }
@@ -151,7 +157,8 @@ export default function ContentStudio() {
         }),
       })
     } catch (error) {
-      console.error('Failed to update article:', error)
+      console.error('[updateArticleInDb] Failed to update article:', error)
+      toast.error('Failed to update article in database')
     }
   }
 
@@ -224,8 +231,9 @@ export default function ContentStudio() {
         body: JSON.stringify({ title: input.title, keyword: input.keyword, category: input.category }),
       })
       if (!outlineResponse.ok) {
-        const errData = await outlineResponse.json().catch(() => ({}))
-        throw new Error(errData.error || `Failed to generate outline (${outlineResponse.status})`)
+        let errMsg = `Failed to generate outline (${outlineResponse.status})`
+        try { const errData = await outlineResponse.json(); if (errData.error) errMsg = errData.error } catch (e) { console.warn('[generateArticle] Could not parse outline error response:', e) }
+        throw new Error(errMsg)
       }
       const { outline } = await outlineResponse.json()
 
@@ -353,15 +361,15 @@ export default function ContentStudio() {
       const { content } = await contentResponse.json()
 
       updateProgress('optimizing-html', 80, 'Optimizing HTML and adding schema markup...')
-      const faqs = outline?.faq?.map((f: { question: string; briefAnswer: string }) => ({
+      const faqs = Array.isArray(outline?.faq) ? outline.faq.map((f: { question: string; briefAnswer: string }) => ({
         question: f.question, answer: f.briefAnswer,
-      })) || []
+      })) : []
 
       const metaDescription = input.metaDescription || `Learn about ${input.keyword}. This comprehensive guide from Naked Nutrition covers everything you need to know about ${input.title.toLowerCase()}.`.slice(0, 160)
       const titleTag = input.titleTag || input.title
       const slug = input.shopifySlug || generateSlug(input.title)
       const textContent = content.replace(/<[^>]*>/g, ' ')
-      const wordCount = textContent.split(/s+/).filter(Boolean).length
+      const wordCount = textContent.split(/\s+/).filter(Boolean).length
 
       const article: GeneratedArticle = {
         id: `article-${Date.now()}`,
@@ -391,8 +399,10 @@ export default function ContentStudio() {
       setActiveView('article-content')
       setTimeout(() => updateProgress('idle', 0, ''), 3000)
     } catch (error) {
-      console.error('Generation error:', error)
-      updateProgress('error', 0, error instanceof Error ? error.message : 'Failed to generate article')
+      console.error('[generateArticle] Generation error:', error)
+      const errMsg = error instanceof Error ? error.message : 'Failed to generate article'
+      updateProgress('error', 0, errMsg)
+      toast.error('Article generation failed', { description: errMsg })
     } finally {
       setIsGenerating(false)
     }
@@ -410,7 +420,7 @@ export default function ContentStudio() {
     const updatedArticle = {
       ...currentArticle, ...updates,
       htmlContent: newHtml,
-      wordCount: newHtml.replace(/<[^>]*>/g, ' ').split(/s+/).filter(Boolean).length,
+      wordCount: newHtml.replace(/<[^>]*>/g, ' ').split(/\s+/).filter(Boolean).length,
     }
     setCurrentArticle(updatedArticle)
     setArticles(prev => prev.map(a => a.id === updatedArticle.id ? updatedArticle : a))
@@ -521,7 +531,9 @@ export default function ContentStudio() {
           setAvailableInternalLinks(extractLinks(allTopics))
         }
       }
-    } catch {}
+    } catch (error) {
+      console.warn('[loadInternalLinks] Failed to load internal links:', error)
+    }
   }, [])
 
   const loadArticleFromDb = async (article: GeneratedArticle) => {
@@ -892,6 +904,11 @@ export default function ContentStudio() {
         {/* === Article Workshop === */}
         {activeView === 'workshop' && (
           <ArticleWorkshopView />
+        )}
+
+        {/* === Guide === */}
+        {activeView === 'guide' && (
+          <GuideView onNavigate={setActiveView} />
         )}
 
       </main>

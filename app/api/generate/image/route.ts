@@ -99,10 +99,10 @@ export async function POST(request: NextRequest) {
     });
   }
 
-    return NextResponse.json({ image: null, placeholder: true, prompt: imagePrompt, message: "Image generation unavailable." });
+    return NextResponse.json({ image: null, placeholder: true, prompt: imagePrompt, message: "Image generation unavailable." }, { status: 502 });
   } catch (error) {
-    console.error("Featured image generation error:", error);
-    return NextResponse.json({ image: null, placeholder: true, message: "Image generation failed." });
+    console.error("[generate/image] Featured image generation error:", error);
+    return NextResponse.json({ image: null, placeholder: true, message: error instanceof Error ? error.message : "Image generation failed." }, { status: 500 });
   }
 }
 

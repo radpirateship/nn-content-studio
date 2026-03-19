@@ -1005,7 +1005,7 @@ export function ArticleWorkshopView() {
                       </h3>
                       <div className="mt-1 flex flex-wrap items-center gap-2">
                         <span className="text-[12px]" style={{ color: 'var(--text3)' }}>
-                          {getWordCount().toLocaleString()} words
+                          {(getWordCount() ?? 0).toLocaleString()} words
                         </span>
                         <span style={{ color: 'var(--border)' }}>|</span>
                         <span className="text-[12px]" style={{ color: 'var(--text3)' }}>

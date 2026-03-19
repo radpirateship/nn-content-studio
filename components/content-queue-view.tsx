@@ -244,7 +244,7 @@ export function ContentQueueView({ articles, onNewArticle, onOpenArticle }: Prop
                     <span className="rounded px-1 py-0.5 font-mono" style={{ background: 'var(--surface)', color: 'var(--text3)' }}>
                       {CATEGORY_LABELS[item.category] || item.category}
                     </span>
-                    {item.wordCount > 0 && <span>{item.wordCount.toLocaleString()} w</span>}
+                    {item.wordCount > 0 && <span>{item.wordCount?.toLocaleString()} w</span>}
                   </div>
 
                   {/* Progress bar for generating column */}

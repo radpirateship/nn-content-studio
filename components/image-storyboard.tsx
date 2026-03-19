@@ -39,19 +39,33 @@ export function ImageStoryboard({
   const [insertedCount, setInsertedCount] = useState<number | null>(null)
   const [latestHtmlContent, setLatestHtmlContent] = useState<string>(article.htmlContent || '')
 
+  // Keep latestHtmlContent in sync when the article prop updates (e.g. after link application)
+  useEffect(() => {
+    if (article.htmlContent && article.htmlContent.length > latestHtmlContent.length) {
+      setLatestHtmlContent(article.htmlContent)
+    }
+  }, [article.htmlContent])
+
   // Re-fetch latest HTML from DB on mount to ensure we have post-link version
   // This prevents the race condition where links are applied but state hasn't propagated
   useEffect(() => {
     if (!article.dbId) return
+    let cancelled = false
     fetch(`/api/articles?id=${article.dbId}`)
-      .then(r => r.ok ? r.json() : null)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
       .then(data => {
-        if (data?.html_content && data.html_content.length > (article.htmlContent || '').length) {
+        if (!cancelled && data?.html_content && data.html_content.length > (article.htmlContent || '').length) {
           console.log('[image-storyboard] Loaded fresher HTML from DB (has links)')
           setLatestHtmlContent(data.html_content)
         }
       })
-      .catch(() => {}) // silent — fall back to prop
+      .catch((err) => {
+        console.warn('[image-storyboard] Could not refresh HTML from DB:', err.message)
+      })
+    return () => { cancelled = true }
   }, [article.dbId])
 
   const generatedConcepts = concepts.filter(c => c.status === 'generated')

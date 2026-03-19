@@ -314,7 +314,7 @@ export async function POST(request: NextRequest) {
       success: true,
     });
   } catch (error) {
-    console.error("[add-images] Fatal error:", error);
+    console.error("[add-images] Fatal error:", { articleId, category, error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to add images" },
       { status: 500 }

@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { ArrowLeft, Plus, Trash2, AlertCircle } from 'lucide-react'
 import { RevampGenerationProgress } from './revamp-generation-progress'
+import { RevampStepper, type RevampStep } from './revamp-stepper'
 import type { GeneratedArticle, OutlineSection, FAQItem, Product, GeneratedImage } from '@/lib/types'
 
 interface Claim {
@@ -78,11 +79,18 @@ export function RevampAnalysisView({
         estimatedWords: Math.round((settings.wordCount || 2500) / (analysis.suggestedOutline?.length || 6)),
         isNew: s.isNew ?? false,
       }))
-    : [
-        { id: '1', heading: 'Introduction', keyPoints: ['Hook', 'Problem statement', 'Solution preview'], estimatedWords: 200, isNew: false },
-        { id: '2', heading: 'Main Content', keyPoints: ['Key insight 1', 'Key insight 2', 'Key insight 3'], estimatedWords: 800, isNew: false },
-        { id: '3', heading: 'Conclusion', keyPoints: ['Summary of key points', 'Call to action', 'Final thought'], estimatedWords: 200, isNew: false },
-      ]
+    : (() => {
+        console.warn('[revamp-analysis] No suggestedOutline from AI — using content-aware fallback')
+        const targetWords = settings.wordCount || 2500
+        const bodyWords = Math.max(200, targetWords - 400)
+        return [
+          { id: '1', heading: 'Introduction', keyPoints: ['Introduce the topic and why it matters', 'Establish credibility with a key fact or statistic', 'Preview what the reader will learn'], estimatedWords: 200, isNew: false },
+          { id: '2', heading: 'Core Benefits & Science', keyPoints: ['Primary benefit backed by research', 'How the mechanism works in the body', 'Dosage or usage recommendations'], estimatedWords: Math.round(bodyWords * 0.4), isNew: false },
+          { id: '3', heading: 'Practical Application', keyPoints: ['Best practices for supplementation', 'Common mistakes to avoid', 'How to combine with diet or exercise'], estimatedWords: Math.round(bodyWords * 0.35), isNew: false },
+          { id: '4', heading: 'FAQs & Misconceptions', keyPoints: ['Address the most common question', 'Debunk a popular myth', 'Clarify safety or side-effect concerns'], estimatedWords: Math.round(bodyWords * 0.25), isNew: false },
+          { id: '5', heading: 'Conclusion & Next Steps', keyPoints: ['Recap key takeaways', 'Recommend a specific product or action', 'Encourage the reader to explore further'], estimatedWords: 200, isNew: false },
+        ]
+      })()
 
   const [outline, setOutline] = useState<OutlineSectionState[]>(initialOutline)
 
@@ -323,8 +331,18 @@ export function RevampAnalysisView({
     }
   }
 
+  const stepperStep: RevampStep = isGenerating
+    ? (generationStep === 'done' ? 'done' : 'generating')
+    : 'review'
+
   return (
-    <div className="flex h-full gap-6 overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Progress Stepper */}
+      <div className="flex-shrink-0 border-b px-6" style={{ borderColor: 'var(--border)', background: 'var(--bg-warm)' }}>
+        <RevampStepper currentStep={stepperStep} />
+      </div>
+
+    <div className="flex flex-1 gap-6 overflow-hidden">
       {isGenerating ? (
         // Progress view
         <div className="flex-1 flex flex-col items-center justify-center px-8 py-6">
@@ -367,13 +385,13 @@ export function RevampAnalysisView({
                 <div className="flex justify-between text-[13px]" style={{ color: 'var(--text2)' }}>
                   <span>Word Count:</span>
                   <span className="font-mono font-medium" style={{ color: 'var(--text1)' }}>
-                    {analysis.wordCount.toLocaleString()}
+                    {(analysis.wordCount ?? 0).toLocaleString()}
                   </span>
                 </div>
                 <div className="flex justify-between text-[13px]" style={{ color: 'var(--text2)' }}>
                   <span>Headings:</span>
                   <span className="font-mono font-medium" style={{ color: 'var(--text1)' }}>
-                    {analysis.headings.length}
+                    {analysis.headings?.length ?? 0}
                   </span>
                 </div>
                 <div className="flex justify-between text-[13px]" style={{ color: 'var(--text2)' }}>
@@ -391,7 +409,7 @@ export function RevampAnalysisView({
                 <div className="flex justify-between text-[13px]" style={{ color: 'var(--text2)' }}>
                   <span>Claims:</span>
                   <span className="font-mono font-medium" style={{ color: 'var(--text1)' }}>
-                    {analysis.claims.length}
+                    {analysis.claims?.length ?? 0}
                   </span>
                 </div>
               </div>
@@ -557,6 +575,7 @@ export function RevampAnalysisView({
           </div>
         </>
       )}
+    </div>
     </div>
   )
 }

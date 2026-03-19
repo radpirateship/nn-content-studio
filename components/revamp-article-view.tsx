@@ -1,7 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowRight, Plus, X, Search, Loader2, Upload } from 'lucide-react'
+import { ArrowRight, Plus, X, Search, Loader2, Upload, Info } from 'lucide-react'
+import { toast } from 'sonner'
+import { RevampStepper, type RevampStep } from './revamp-stepper'
 
 interface RevampArticleViewProps {
   onAnalysisComplete: (
@@ -188,11 +190,11 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
 
   const handleAnalyze = async () => {
     if (!articleContent.trim()) {
-      alert('Please provide article content')
+      toast.error('Please provide article content', { description: 'Paste HTML, enter a Shopify URL, or select a blog post.' })
       return
     }
     if (!keyword.trim()) {
-      alert('Please enter a primary keyword')
+      toast.error('Please enter a primary keyword', { description: 'The keyword is used for SEO analysis and link suggestions.' })
       return
     }
 
@@ -214,7 +216,9 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
         throw new Error('Failed to analyze article')
       }
 
-      const analysis = await response.json()
+      const responseData = await response.json()
+      // API returns { analysis: { ... } } — unwrap the inner object
+      const analysis = responseData.analysis || responseData
       const settingsData = {
         category,
         keyword,
@@ -225,15 +229,23 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
 
       onAnalysisComplete(analysis, articleContent, validCitations, settingsData)
     } catch (error) {
-      console.error('Analysis failed:', error)
-      alert('Failed to analyze article. Please try again.')
+      console.error('[revamp] Analysis failed:', error)
+      toast.error('Analysis failed', { description: error instanceof Error ? error.message : 'Please try again.' })
     } finally {
       setIsLoading(false)
     }
   }
 
+  const stepperStep: RevampStep = isLoading ? 'analyzing' : 'input'
+
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Progress Stepper */}
+      <div className="flex-shrink-0 border-b px-6" style={{ borderColor: 'var(--border)', background: 'var(--bg-warm)' }}>
+        <RevampStepper currentStep={stepperStep} />
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
       {/* Left Column: Article Input + Citations */}
       <div className="flex-1 flex flex-col overflow-hidden border-r" style={{ borderColor: 'var(--border)' }}>
         {/* Header */}
@@ -241,8 +253,9 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
           <h1 className="font-serif text-[22px] font-semibold mb-1" style={{ color: 'var(--text1)' }}>
             Revamp Article
           </h1>
-          <p className="text-[13px]" style={{ color: 'var(--text3)' }}>
-            Analyze and rewrite existing content
+          <p className="text-[13px] leading-[1.5]" style={{ color: 'var(--text3)' }}>
+            Paste or fetch an existing article, then analyze it. You&apos;ll review the analysis —
+            word count, heading structure, content gaps — and customize an improved outline before generating.
           </p>
         </div>
 
@@ -377,13 +390,13 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
                           <div>
                             <div style={{ color: 'var(--text4)' }}>Clicks</div>
                             <div className="font-semibold" style={{ color: 'var(--text1)' }}>
-                              {post.clicks.toLocaleString()}
+                              {(post.clicks ?? 0).toLocaleString()}
                             </div>
                           </div>
                           <div>
                             <div style={{ color: 'var(--text4)' }}>Impressions</div>
                             <div className="font-semibold" style={{ color: 'var(--text1)' }}>
-                              {post.impressions.toLocaleString()}
+                              {(post.impressions ?? 0).toLocaleString()}
                             </div>
                           </div>
                           <div>
@@ -647,6 +660,16 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
 
         {/* Submit Button */}
         <div className="flex-shrink-0 border-t p-4" style={{ borderColor: 'var(--border)' }}>
+          <div
+            className="flex items-start gap-2 mb-3 px-1 text-[11.5px] leading-[1.5]"
+            style={{ color: 'var(--text4)' }}
+          >
+            <Info className="h-3.5 w-3.5 shrink-0 mt-[1px]" />
+            <span>
+              This will analyze the content and take you to a review page where you can
+              adjust the outline, tone, and word count before generating the rewrite.
+            </span>
+          </div>
           <button
             onClick={handleAnalyze}
             disabled={isLoading}
@@ -654,7 +677,10 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
             style={{ background: 'var(--nn-accent)', opacity: isLoading ? 0.7 : 1 }}
           >
             {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Analyzing content...
+              </>
             ) : (
               <>
                 Analyze Article
@@ -664,6 +690,7 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
           </button>
         </div>
       </div>
+    </div>
     </div>
   )
 }

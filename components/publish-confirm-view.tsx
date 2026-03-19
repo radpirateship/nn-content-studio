@@ -71,7 +71,7 @@ export function PublishConfirmView({ article, onBackToEditor, onNewArticle, onVi
 
       const result = await response.json()
       const returnedUrl = result.article?.url
-      const fallbackUrl = `https://nakednutrition.com/blogs/wellness/${result.article?.handle || article.slug}`
+      const fallbackUrl = `https://nakednutrition.com/blogs/wellness/${result.article?.handle || article.slug || 'article'}`
       setShopifyUrl(returnedUrl || fallbackUrl)
       setPublishedAt(new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }))
       setPhase('success')

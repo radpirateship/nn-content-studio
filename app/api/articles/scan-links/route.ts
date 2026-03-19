@@ -78,7 +78,7 @@ ${plainText.slice(0, 8000)}`;
 
     return NextResponse.json({ suggestions: normalizedSuggestions, count: normalizedSuggestions.length, success: true });
   } catch (error) {
-    console.error("Scan links error:", error);
+    console.error("[scan-links] Error:", { articleTitle, internalLinksCount: internalLinks?.length ?? 0, error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to scan for link opportunities" },
       { status: 500 }

@@ -140,7 +140,7 @@ ${bodyContent}`;
       success: true 
     });
   } catch (error) {
-    console.error("Add links error:", error);
+    console.error("[add-links] Error:", { articleId, linkCount: approvedLinks?.length ?? 0, error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to add links" },
       { status: 500 }

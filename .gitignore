@@ -33,3 +33,4 @@ pnpm-lock.yaml
 
 # build info
 tsconfig.tsbuildinfo
+.env*.local

@@ -33,7 +33,7 @@ export function DashboardHeader({ productCount, articleCount }: DashboardHeaderP
             <div className="flex items-center gap-1.5 text-sm">
               <Package className="h-4 w-4 text-muted-foreground" />
               <span className="text-muted-foreground">Products:</span>
-              <Badge variant="secondary">{productCount.toLocaleString()}</Badge>
+              <Badge variant="secondary">{(productCount ?? 0).toLocaleString()}</Badge>
             </div>
             <div className="flex items-center gap-1.5 text-sm">
               <FileText className="h-4 w-4 text-muted-foreground" />

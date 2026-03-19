@@ -230,7 +230,8 @@ import { CATEGORY_LABELS } from '@/lib/types'
     }
   }
   
-  const getImageExtension = (url: string): string => {
+  const getImageExtension = (url: string | null | undefined): string => {
+    if (!url) return 'png'
     if (url.startsWith('data:image/png')) return 'png'
     if (url.startsWith('data:image/jpeg') || url.startsWith('data:image/jpg')) return 'jpg'
     if (url.startsWith('data:image/webp')) return 'webp'

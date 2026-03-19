@@ -97,7 +97,9 @@ export function AutoRunView({
           const data = await productsRes.json()
           products = data.products || []
         }
-      } catch {}
+      } catch (error) {
+        console.warn('[auto-run] Product fetch failed, continuing without products:', error)
+      }
 
       // ââ Fetch topical authority for links + related articles ââ
       updateStep('content', { detail: 'Fetching topical authority data...' })
@@ -129,7 +131,9 @@ export function AutoRunView({
           cluster.slice(0, 2).forEach((t: any) => rList.push({ title: t.title, url: t.existingUrl, description: t.metaDescription || '' }))
           relatedArticles = rList
         }
-      } catch {}
+      } catch (error) {
+        console.warn('[auto-run] Topical authority fetch failed, continuing without links:', error)
+      }
 
       // ââ Step 1 cont: Generate full content ââ
       updateStep('content', { detail: 'Writing article with AI...' })
@@ -177,7 +181,7 @@ export function AutoRunView({
       const dbId = await saveArticleToDb(newArticle)
       if (dbId) newArticle.dbId = dbId
 
-      updateStep('content', { status: 'done', detail: `${wordCount.toLocaleString()} words generated` })
+      updateStep('content', { status: 'done', detail: `${(wordCount ?? 0).toLocaleString()} words generated` })
       setArticle(newArticle)
 
       // ââ Step 2: Auto-apply links ââ

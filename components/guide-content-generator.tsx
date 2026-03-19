@@ -301,7 +301,7 @@ async function fetchCollectionProducts(
     const res = await fetch(`/api/products?category=${encodeURIComponent(collectionSlug)}&limit=100`)
     if (!res.ok) {
       console.error(`[Products API Error] Status: ${res.status} for slug: "${collectionSlug}"`)
-      try { console.error('[Products API Error] Body:', await res.text()) } catch {}
+      try { console.error('[Products API Error] Body:', await res.text()) } catch (e) { console.error('[Products API Error] Could not read response body:', e) }
       return []
     }
     const data = await res.json()

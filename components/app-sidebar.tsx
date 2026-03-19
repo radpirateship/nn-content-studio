@@ -17,6 +17,7 @@ import {
   RefreshCw,
   List,
   Wrench,
+  BookOpen,
 } from 'lucide-react'
 
 export type ViewId =
@@ -37,6 +38,7 @@ export type ViewId =
   | 'publish-confirm'
   | 'error'
   | 'workshop'
+  | 'guide'
 
 interface NavItem {
   id: ViewId
@@ -102,6 +104,7 @@ export function AppSidebar({
     { id: 'products', label: 'Products', icon: <Package className="h-[18px] w-[18px]" /> },
     { id: 'resources', label: 'Resources', icon: <Database className="h-[18px] w-[18px]" /> },
     { id: 'workshop', label: 'Workshop', icon: <Wrench className="h-[18px] w-[18px]" /> },
+    { id: 'guide', label: 'Guide', icon: <BookOpen className="h-[18px] w-[18px]" /> },
   ]
 
   function renderNavItem(item: NavItem) {

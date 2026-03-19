@@ -25,11 +25,15 @@ export async function POST(request: NextRequest) {
     let enrichedHTML = htmlContent;
     let linksApplied = 0;
 
-    // Sort links by anchor text length (longest first) to avoid partial matches
-    const sortedLinks = [...approvedLinks].sort(
-      (a: { anchorText: string; editedAnchor?: string }, b: { anchorText: string; editedAnchor?: string }) => 
-        (b.editedAnchor || b.anchorText).length - (a.editedAnchor || a.anchorText).length
-    );
+    // Filter out malformed links and sort by anchor text length (longest first) to avoid partial matches
+    const sortedLinks = [...approvedLinks]
+      .filter((l: { anchorText?: string; editedAnchor?: string; targetUrl?: string; editedUrl?: string }) =>
+        (l.editedAnchor || l.anchorText) && (l.editedUrl || l.targetUrl)
+      )
+      .sort(
+        (a: { anchorText: string; editedAnchor?: string }, b: { anchorText: string; editedAnchor?: string }) =>
+          (b.editedAnchor || b.anchorText).length - (a.editedAnchor || a.anchorText).length
+      );
 
     for (const link of sortedLinks) {
       const anchor = link.editedAnchor || link.anchorText;
@@ -98,7 +102,7 @@ export async function POST(request: NextRequest) {
       success: true,
     });
   } catch (error) {
-    console.error("Apply links error:", error);
+    console.error("[apply-links] Error:", { articleId, linkCount: approvedLinks?.length ?? 0, error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to apply links" },
       { status: 500 }

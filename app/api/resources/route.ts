@@ -47,10 +47,10 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Resource fetch error:", error);
-    return NextResponse.json({
-      items: [],
-      count: 0,
-    });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to fetch resources", items: [], count: 0 },
+      { status: 500 }
+    );
   }
 }
 

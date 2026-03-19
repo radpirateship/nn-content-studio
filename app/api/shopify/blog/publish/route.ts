@@ -181,6 +181,13 @@ export async function POST(request: NextRequest) {
     });
 
     const createdArticle = data.article;
+    if (!createdArticle || !createdArticle.id) {
+      const errDetail = data.errors ? JSON.stringify(data.errors) : 'No article returned';
+      return NextResponse.json(
+        { error: `Shopify publish failed: ${errDetail}` },
+        { status: 502 }
+      );
+    }
     const articleUrl = `https://nakednutrition.com/blogs/wellness/${createdArticle.handle}`;
 
     // Ping search engines to re-crawl the sitemap

@@ -100,7 +100,7 @@ export function SeoAnalysisView({ article }: SeoAnalysisViewProps) {
     checks.push({
       id: 'word-count', label: 'Word Count', category: 'Content',
       status: wordCount >= 2000 ? 'pass' : wordCount >= 1200 ? 'warn' : 'fail',
-      detail: `${wordCount.toLocaleString()} words${wordCount < 2000 ? ' (aim for 2000+)' : ''}`,
+      detail: `${(wordCount ?? 0).toLocaleString()} words${(wordCount ?? 0) < 2000 ? ' (aim for 2000+)' : ''}`,
     })
     checks.push({
       id: 'keyword-density', label: 'Keyword Density', category: 'Content',
@@ -218,7 +218,7 @@ export function SeoAnalysisView({ article }: SeoAnalysisViewProps) {
         {/* Quick stats */}
         <div className="grid grid-cols-4 gap-3 mb-6">
           {[
-            { label: 'Words', value: analysis.wordCount.toLocaleString(), icon: FileText },
+            { label: 'Words', value: (analysis.wordCount ?? 0).toLocaleString(), icon: FileText },
             { label: 'Keyword', value: `${analysis.keywordDensity.toFixed(1)}%`, icon: Search },
             { label: 'Links', value: String(article.linkCount || 0), icon: Link2 },
             { label: 'Images', value: String(article.imageCount || 0), icon: ImageIcon },

@@ -211,7 +211,9 @@ export function BulkUploadView({
       try {
         const pRes = await fetch(`/api/products?category=${category}&collection=${category}&search=${encodeURIComponent(item.keyword)}&limit=4`)
         if (pRes.ok) { const d = await pRes.json(); products = d.products || [] }
-      } catch {}
+      } catch (error) {
+        console.warn(`[bulk-upload] Product fetch failed for "${item.title}", continuing without products:`, error)
+      }
 
       // Topical authority
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, step: 'Fetching resources...' } : i))
@@ -232,7 +234,9 @@ export function BulkUploadView({
           const cluster = withUrls.filter((t: any) => !t.title?.toLowerCase().includes('ultimate guide'))
           relatedArticles = cluster.slice(0, 3).map((t: any) => ({ title: t.title, url: t.existingUrl, description: t.metaDescription || '' }))
         }
-      } catch {}
+      } catch (error) {
+        console.warn(`[bulk-upload] Topical authority fetch failed for "${item.title}", continuing without links:`, error)
+      }
 
       // Generate content
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, step: 'Writing article...' } : i))
@@ -299,7 +303,9 @@ export function BulkUploadView({
             article.hasInternalLinks = true
             article.linkCount = d.linkCount
           }
-        } catch {}
+        } catch (error) {
+          console.warn(`[bulk-upload] Link application failed for "${item.title}":`, error)
+        }
       }
 
       return article

@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ shopifyUrl, success: true });
   } catch (error) {
-    console.error("[upload-to-shopify] Error:", error);
+    console.error("[upload-to-shopify] Error:", { imageUrlPrefix: imageUrl?.slice?.(0, 50), altText, error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to upload image to Shopify" },
       { status: 500 }
