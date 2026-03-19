@@ -91,12 +91,13 @@ export function RevampAnalysisView({
   const [error, setError] = useState<string | null>(null)
 
   const citationMapping = useMemo(() => {
+    if (!analysis?.claims || !Array.isArray(analysis.claims)) return []
     return analysis.claims.map((claim, idx) => ({
       claim: claim.text,
       citationIndex: claim.citationIndex ?? -1,
       citation: claim.citationIndex !== undefined && claim.citationIndex >= 0 ? citations[claim.citationIndex] : null,
     }))
-  }, [analysis.claims, citations])
+  }, [analysis?.claims, citations])
 
   const updateSectionHeading = (id: string, newHeading: string) => {
     setOutline(outline.map(s => (s.id === id ? { ...s, heading: newHeading } : s)))
