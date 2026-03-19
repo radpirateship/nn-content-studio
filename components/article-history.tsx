@@ -150,8 +150,9 @@ function ArticleCard({
   onDelete: (id: string) => void
   onStatusChange?: (id: string, status: ArticleStatus) => void
 }) {
-  const createdAt = new Date(article.createdAt)
+  const createdAt = article.createdAt ? new Date(article.createdAt) : new Date()
   const categoryLabel = (CATEGORY_LABELS[article.category as keyof typeof CATEGORY_LABELS] ?? article.category ?? 'Unknown')
+  const title = article.title || 'Untitled Article'
 
   const statusStyles: Record<string, { bg: string; color: string; label: string }> = {
     draft: { bg: 'var(--surface2)', color: 'var(--text3)', label: 'Draft' },
@@ -174,7 +175,7 @@ function ArticleCard({
       {/* Top row: title + status */}
       <div className="flex items-start gap-2.5">
         <h3 className="flex-1 font-serif text-[15px] font-semibold leading-snug" style={{ color: 'var(--text1)' }}>
-          {article.title}
+          {title}
         </h3>
         <span
           className="shrink-0 rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.3px]"
