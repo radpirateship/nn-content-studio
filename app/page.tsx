@@ -63,7 +63,7 @@ export default function ContentStudio() {
         const response = await fetch('/api/articles')
         if (response.ok) {
           const data = await response.json()
-          const articlesWithDates = data.map((a: { id: number; title: string; slug: string; category: string; keyword: string; status: string; word_count: number; meta_description?: string; created_at: string; updated_at: string; has_internal_links?: boolean; has_images?: boolean; link_count?: number; image_count?: number; article_type?: string }) => ({
+          const articlesWithDates = data.map((a: { id: string; title: string; slug: string; category: string; keyword: string; status: string; word_count: number; meta_description?: string; created_at: string; updated_at: string }) => ({
             id: `article-${a.id}`,
             dbId: a.id,
             title: a.title,
@@ -74,11 +74,6 @@ export default function ContentStudio() {
             wordCount: a.word_count,
             metaDescription: a.meta_description || '',
             createdAt: new Date(a.created_at),
-            hasInternalLinks: a.has_internal_links || false,
-            hasImages: a.has_images || false,
-            linkCount: a.link_count || 0,
-            imageCount: a.image_count || 0,
-            articleType: a.article_type,
           }))
           setArticles(articlesWithDates)
         }
@@ -127,10 +122,8 @@ export default function ContentStudio() {
           meta_description: article.metaDescription,
           schema_markup: article.schemaMarkup,
           featured_image_url: article.featuredImage?.url,
-          featured_image_alt: article.featuredImage?.altText,
           word_count: article.wordCount,
           status: 'draft',
-          article_type: article.articleType,
         }),
       })
       if (response.ok) {

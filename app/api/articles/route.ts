@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     }
 
     const articles = await sql`
-      SELECT id, title, slug, category, keyword, status, word_count, meta_description, article_type, created_at, updated_at
+      SELECT id, title, slug, category, keyword, status, word_count, meta_description, created_at, updated_at
       FROM articles
       ORDER BY created_at DESC
     `;
@@ -47,12 +47,9 @@ export async function POST(request: NextRequest) {
       meta_description,
       schema_markup,
       featured_image_url,
-      featured_image_alt,
       word_count,
       status = "draft",
-      article_type,
-      source_type = "new",
-      original_shopify_id,
+      tone,
     } = body;
 
     // Check if slug exists and make it unique if needed
@@ -62,20 +59,17 @@ export async function POST(request: NextRequest) {
     `;
 
     if (existingSlugs.length > 0) {
-      // Add timestamp to make slug unique
       uniqueSlug = `${slug}-${Date.now()}`;
     }
 
     const articles = await sql`
       INSERT INTO articles (
         title, slug, category, keyword, html_content, meta_description,
-        schema_markup, featured_image_url, featured_image_alt, word_count, status, article_type,
-        source_type, original_shopify_id
+        schema_markup, featured_image_url, word_count, status, tone
       ) VALUES (
-        ${title}, ${uniqueSlug}, ${category}, ${keyword}, ${html_content}, ${meta_description},
-        ${schema_markup || null}, ${featured_image_url || null}, ${featured_image_alt || null},
-        ${word_count || 0}, ${status}, ${article_type || null},
-        ${source_type}, ${original_shopify_id || null}
+        ${title}, ${uniqueSlug}, ${category || null}, ${keyword || null}, ${html_content}, ${meta_description || null},
+        ${schema_markup || null}, ${featured_image_url || null},
+        ${word_count || 0}, ${status}, ${tone || null}
       )
       RETURNING *
     `;
@@ -102,41 +96,21 @@ export async function PUT(request: NextRequest) {
     }
 
     // Build dynamic update query
-    const allowedFields = [
-      "title", "slug", "category", "keyword", "html_content", "meta_description",
-      "schema_markup", "featured_image_url", "featured_image_alt", "word_count", "status"
-    ];
-
-    const updateFields: string[] = [];
-    const values: unknown[] = [];
-    
-    for (const field of allowedFields) {
-      if (updates[field] !== undefined) {
-        updateFields.push(field);
-        values.push(updates[field]);
-      }
-    }
-
-    if (updateFields.length === 0) {
-      return NextResponse.json({ error: "No fields to update" }, { status: 400 });
-    }
-
     // Use parameterized query for safety
     const articles = await sql`
-      UPDATE articles 
-      SET 
-        title = COALESCE(${updates.title}, title),
-        slug = COALESCE(${updates.slug}, slug),
-        category = COALESCE(${updates.category}, category),
-        keyword = COALESCE(${updates.keyword}, keyword),
-        html_content = COALESCE(${updates.html_content}, html_content),
-        meta_description = COALESCE(${updates.meta_description}, meta_description),
-        schema_markup = COALESCE(${updates.schema_markup}, schema_markup),
-        featured_image_url = CASE WHEN ${'featured_image_url' in updates}::boolean THEN ${updates.featured_image_url ?? null} ELSE featured_image_url END,
-        featured_image_alt = CASE WHEN ${'featured_image_alt' in updates}::boolean THEN ${updates.featured_image_alt ?? null} ELSE featured_image_alt END,
-        word_count = COALESCE(${updates.word_count}, word_count),
-        status = COALESCE(${updates.status}, status),
-          article_type = COALESCE(${updates.article_type}, article_type),
+      UPDATE articles
+      SET
+        title = COALESCE(${updates.title ?? null}, title),
+        slug = COALESCE(${updates.slug ?? null}, slug),
+        category = COALESCE(${updates.category ?? null}, category),
+        keyword = COALESCE(${updates.keyword ?? null}, keyword),
+        html_content = COALESCE(${updates.html_content ?? null}, html_content),
+        meta_description = COALESCE(${updates.meta_description ?? null}, meta_description),
+        schema_markup = COALESCE(${updates.schema_markup ?? null}, schema_markup),
+        featured_image_url = COALESCE(${updates.featured_image_url ?? null}, featured_image_url),
+        word_count = COALESCE(${updates.word_count ?? null}, word_count),
+        status = COALESCE(${updates.status ?? null}, status),
+        tone = COALESCE(${updates.tone ?? null}, tone),
         updated_at = NOW()
       WHERE id = ${id}
       RETURNING *
