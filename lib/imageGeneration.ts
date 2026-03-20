@@ -21,6 +21,20 @@ export interface GeneratedImageResult {
   provider: string;
 }
 
+export class ImageGenerationError extends Error {
+  code?: number;
+  providerStatus?: string;
+  providerMessage?: string;
+
+  constructor(message: string, options?: { code?: number; providerStatus?: string; providerMessage?: string }) {
+    super(message);
+    this.name = "ImageGenerationError";
+    this.code = options?.code;
+    this.providerStatus = options?.providerStatus;
+    this.providerMessage = options?.providerMessage;
+  }
+}
+
 export async function generateImageWithModel(
   prompt: string,
   model: ImageModel,
@@ -40,7 +54,7 @@ async function generateWithGemini(
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
   if (!GEMINI_API_KEY) {
     console.error('[imageGeneration] GEMINI_API_KEY not set');
-    return null;
+    throw new ImageGenerationError('GEMINI_API_KEY is not configured on the server.');
   }
 
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key=${GEMINI_API_KEY}`;
@@ -72,20 +86,44 @@ async function generateWithGemini(
     if (!response.ok) {
       const errText = await response.text();
       console.error('[imageGeneration] Gemini HTTP error:', response.status, errText.slice(0, 500));
-      return null;
+      let providerStatus: string | undefined;
+      let providerMessage: string | undefined;
+
+      try {
+        const parsed = JSON.parse(errText);
+        providerStatus = parsed?.error?.status;
+        providerMessage = parsed?.error?.message;
+      } catch {
+        providerMessage = errText.slice(0, 300);
+      }
+
+      let message = providerMessage || `Gemini image generation failed with HTTP ${response.status}.`;
+      if (response.status === 429) {
+        message = 'Gemini rate limit reached. Wait a minute and try again.';
+      } else if (response.status === 503 || providerStatus === 'UNAVAILABLE') {
+        message = 'Gemini image generation is under high demand right now. Please try again in a minute.';
+      } else if (response.status >= 500) {
+        message = `Gemini image service error (${response.status}). Please try again shortly.`;
+      }
+
+      throw new ImageGenerationError(message, {
+        code: response.status,
+        providerStatus,
+        providerMessage,
+      });
     }
 
     const data = await response.json();
 
     if (data.promptFeedback?.blockReason) {
       console.error('[imageGeneration] Gemini blocked prompt:', data.promptFeedback.blockReason);
-      return null;
+      throw new ImageGenerationError(`Gemini blocked this prompt: ${data.promptFeedback.blockReason}.`);
     }
 
     const candidates = data.candidates;
     if (!candidates || candidates.length === 0) {
       console.error('[imageGeneration] Gemini returned no candidates.');
-      return null;
+      throw new ImageGenerationError('Gemini returned no image candidates.');
     }
 
     const finishReason = candidates[0]?.finishReason;
@@ -96,14 +134,14 @@ async function generateWithGemini(
     const parts = candidates[0]?.content?.parts;
     if (!parts || parts.length === 0) {
       console.error('[imageGeneration] Gemini returned no parts.');
-      return null;
+      throw new ImageGenerationError('Gemini returned an empty response.');
     }
 
     const imagePart = parts.find((p: { inlineData?: { data: string; mimeType: string } }) => p.inlineData);
     if (!imagePart?.inlineData) {
       const partTypes = parts.map((p: { text?: string; inlineData?: unknown }) => p.text ? `text(${p.text.length} chars)` : p.inlineData ? 'image' : 'unknown');
       console.error('[imageGeneration] Gemini returned no image data. Part types:', partTypes);
-      return null;
+      throw new ImageGenerationError('Gemini returned a response without image data.');
     }
 
     const base64Data = imagePart.inlineData.data;
@@ -114,7 +152,10 @@ async function generateWithGemini(
     const dataUri = `data:${mimeType};base64,${base64Data}`;
     return { url: dataUri, model: 'gemini-3.1-flash-image-preview', provider: 'gemini-3.1-flash-image-preview' };
   } catch (error) {
+    if (error instanceof ImageGenerationError) throw error;
     console.error('[imageGeneration] Gemini exception:', error instanceof Error ? error.message : error);
-    return null;
+    throw new ImageGenerationError(
+      error instanceof Error ? error.message : 'Unexpected image generation error.'
+    );
   }
 }

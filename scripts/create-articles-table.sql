@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS articles (
   keyword TEXT,
   category TEXT,
   tone TEXT,
+  article_type TEXT,
+  shopify_blog_tag TEXT,
   word_count INTEGER DEFAULT 2000,
   html_content TEXT NOT NULL,
   meta_description TEXT,

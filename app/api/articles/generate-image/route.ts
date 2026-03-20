@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import { type NextRequest, NextResponse } from "next/server";
-import { generateImageWithModel, type ImageModel } from "@/lib/imageGeneration";
+import { generateImageWithModel, ImageGenerationError, type ImageModel } from "@/lib/imageGeneration";
 
 export const maxDuration = 120;
 
@@ -33,11 +33,29 @@ export async function POST(request: NextRequest) {
     console.log(`[generate-image] Generating ${imageType} image with ${imageModel}, style: ${styleUsed}`);
     console.log(`[generate-image] Prompt (${finalPrompt.length} chars): ${finalPrompt.slice(0, 150)}...`);
 
-    const result = await generateImageWithModel(finalPrompt, imageModel, {
-      style: styleUsed,
-      imageSize: 'landscape_16_9',
-      aspectRatio: '16:9',
-    });
+    let result = null;
+    try {
+      result = await generateImageWithModel(finalPrompt, imageModel, {
+        style: styleUsed,
+        imageSize: 'landscape_16_9',
+        aspectRatio: '16:9',
+      });
+    } catch (error) {
+      if (error instanceof ImageGenerationError) {
+        const status = error.code === 429 ? 429 : error.code === 503 ? 503 : 502;
+        return NextResponse.json(
+          {
+            error: error.message,
+            conceptId,
+            provider: 'gemini-3.1-flash-image-preview',
+            providerStatus: error.providerStatus,
+            providerMessage: error.providerMessage,
+          },
+          { status }
+        );
+      }
+      throw error;
+    }
 
     if (result) {
       let finalUrl = result.url;
@@ -83,7 +101,10 @@ export async function POST(request: NextRequest) {
     }
 
     console.error('[generate-image] FAILED - returning error');
-    return NextResponse.json({ error: "Image generation failed", conceptId, provider: 'failed' }, { status: 500 });
+    return NextResponse.json(
+      { error: "Image generation failed for an unknown reason.", conceptId, provider: 'failed' },
+      { status: 500 }
+    );
 
   } catch (error) {
     console.error("Generate image error:", error);

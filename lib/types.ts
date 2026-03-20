@@ -169,6 +169,7 @@ export interface ImageConcept {
   editedPrompt?: string // User-edited version
   imageUrl?: string // After generation
   altText?: string // Descriptive alt text for accessibility/SEO
+  errorMessage?: string // Detailed generation failure message for UI feedback
   status: 'draft' | 'generating' | 'generated' | 'error'
   placeholderKey?: string // legacy - maps to [IMAGE_PLACEHOLDER_N]
   targetSectionId?: string // H2 id to inject image after
