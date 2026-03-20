@@ -301,8 +301,8 @@ function buildSchema(
     "dateModified": new Date().toISOString().slice(0, 10),
     "author": {
       "@type": "Person",
-      "name": "Ryan O'Connor",
-      "sameAs": ["https://www.linkedin.com/in/ryan-oconnor-nakednutrition/"]
+      "name": "Naked Nutrition Editorial Team",
+      "sameAs": ["https://nakednutrition.com"]
     },
     "publisher": {
       "@type": "Organization",
@@ -659,7 +659,7 @@ ${schemaHtml}
   <div class="container">
     <div class="bio-content">
       <div class="bio-text">
-        <p><strong>Ryan O'Connor</strong> is a wellness researcher and recovery specialist with 12+ years studying ${topicFull.toLowerCase()} and related modalities. He has evaluated dozens of models and consulted on wellness facility builds across North America. Ryan holds certifications in integrative medicine and publishes evidence-based recovery research for Naked Nutrition.</p>
+        <p><strong>Naked Nutrition Editorial Team</strong> — evidence-based nutrition content written and reviewed by certified sports nutritionists and registered dietitians. Our guides cover the science behind protein, collagen, creatine, and other supplements to help you make informed decisions about your nutrition.</p>
       </div>
     </div>
   </div>

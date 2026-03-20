@@ -207,35 +207,38 @@ export async function getProducts({
   return data.products.edges.map((edge) => edge.node);
 }
 
-// Helper to map collection handles to Shopify collection handles
+// Maps internal category/collection slugs to Shopify collection handles
+// All slugs match live Naked Nutrition collections at nakednutrition.com/collections/<slug>
 export const CATEGORY_TO_COLLECTION: Record<string, string> = {
-  // Saunas
-  "saunas": "saunas",
-  "infrared-saunas": "infrared-saunas",
-  "barrel-saunas": "barrel-saunas",
-  "traditional-saunas": "traditional-saunas",
-  "sauna-heaters": "sauna-heaters",
-  "sauna-accessories": "sauna-accessories",
-  "steam": "steam",
-  // Recovery
-  "cold-plunges": "cold-plunges",
-  "cold-plunge": "cold-plunges",        // legacy singular → canonical plural
-  "red-light-therapy": "red-light-therapy",
-  "hyperbaric-chambers": "hyperbaric-chambers",
-  "sensory-deprivation-tanks": "sensory-deprivation-tanks",
-  "massage-equipment": "massage-equipment",
-  "compression-boots": "compression-boots",
-  "recovery-tools": "recovery-tools",
-  // Wellness
-  "hydrogen-water": "hydrogen-water",
-  "water-ionizers": "water-ionizers",
-  "air-filters": "air-filters",
-  "general-wellness": "all",
-  // Fitness
-  "treadmills": "treadmills",
-  "elliptical-machines": "elliptical-machines",
-  "exercise-bikes": "exercise-bikes",
-  "stair-climbers": "stair-climbers",
-  "vertical-climbers": "vertical-climbers",
-  "pilates": "pilates",
+  // Protein
+  "protein-powder": "protein-powder",
+  "whey-protein": "whey-protein",
+  "vegan-protein-powder": "vegan-protein-powder",
+  // Collagen
+  "collagen-peptides": "collagen-peptides",
+  // Other products
+  "overnight-oats": "overnight-oats",
+  "improve-performance-recovery": "improve-performance-recovery",
+  "supplements": "supplements",
+  "kids": "kids",
+  // NNCategory aliases → nearest collection
+  "whey": "whey-protein",
+  "casein-protein": "protein-powder",
+  "pea-protein": "vegan-protein-powder",
+  "rice-protein": "vegan-protein-powder",
+  "mass-gainer": "protein-powder",
+  "pre-workout": "improve-performance-recovery",
+  "post-workout": "improve-performance-recovery",
+  "bcaa": "improve-performance-recovery",
+  "collagen": "collagen-peptides",
+  "greens": "supplements",
+  "fiber": "supplements",
+  "vitamins": "supplements",
+  "probiotics": "supplements",
+  "energy": "supplements",
+  "weight-management": "supplements",
+  "keto": "supplements",
+  "vegan": "vegan-protein-powder",
+  "creatine": "supplements",
+  "general-nutrition": "supplements",
 };

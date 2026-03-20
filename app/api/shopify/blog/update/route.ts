@@ -133,24 +133,23 @@ export async function PUT(request: NextRequest) {
           .filter(Boolean).length;
 
         const tags = (updatedArticle.tags || "").toLowerCase();
-        let category = "general-wellness";
+        let category = "general-nutrition";
         const categoryMap: [string, string][] = [
-          ["saunas", "saunas"],
-          ["cold plunge", "cold-plunge"],
-          ["red light", "red-light-therapy"],
-          ["hyperbaric", "hyperbaric-chambers"],
-          ["hydrogen water", "hydrogen-water"],
-          ["float", "sensory-deprivation-tanks"],
-          ["sensory deprivation", "sensory-deprivation-tanks"],
-          ["massage", "massage-equipment"],
-          ["recovery", "recovery-tools"],
-          ["steam", "steam"],
-          ["treadmill", "treadmills"],
-          ["elliptical", "elliptical-machines"],
-          ["exercise bike", "exercise-bikes"],
-          ["stair climber", "stair-climbers"],
-          ["vertical climber", "vertical-climbers"],
-          ["pilates", "pilates"],
+          ["whey protein", "whey-protein"],
+          ["whey", "whey-protein"],
+          ["vegan protein", "vegan-protein-powder"],
+          ["plant protein", "vegan-protein-powder"],
+          ["collagen", "collagen-peptides"],
+          ["protein powder", "protein-powder"],
+          ["protein", "protein-powder"],
+          ["overnight oats", "overnight-oats"],
+          ["performance", "improve-performance-recovery"],
+          ["recovery", "improve-performance-recovery"],
+          ["pre-workout", "supplements"],
+          ["creatine", "supplements"],
+          ["bcaa", "supplements"],
+          ["supplements", "supplements"],
+          ["kids", "kids"],
         ];
         for (const [keyword, cat] of categoryMap) {
           if (tags.includes(keyword)) {

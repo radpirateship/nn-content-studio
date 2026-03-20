@@ -7,21 +7,16 @@ function getDb() {
   return neon(process.env.DATABASE_URL!)
 }
 
-// Canonical collection list from PPW_COLLECTION_DATABASE_MATCH.csv
+// Canonical Naked Nutrition collection list — matches live Shopify collections
 const CANONICAL_COLLECTIONS = [
-  { label: 'Barrel Saunas',             slug: 'barrel-saunas',             url: 'https://nakednutrition.com/collections/barrel-saunas' },
-  { label: 'Cold Plunges',              slug: 'cold-plunges',              url: 'https://nakednutrition.com/collections/cold-plunges' },
-  { label: 'Hydrogen Water',            slug: 'hydrogen-water',            url: 'https://nakednutrition.com/collections/hydrogen-water' },
-  { label: 'Hyperbaric Chambers',       slug: 'hyperbaric-chambers',       url: 'https://nakednutrition.com/collections/hyperbaric-chambers' },
-  { label: 'Infrared Saunas',           slug: 'infrared-saunas',           url: 'https://nakednutrition.com/collections/infrared-saunas' },
-  { label: 'Pilates',                   slug: 'pilates',                   url: 'https://nakednutrition.com/collections/pilates' },
-  { label: 'Red Light Therapy',         slug: 'red-light-therapy',         url: 'https://nakednutrition.com/collections/red-light-therapy' },
-  { label: 'Sauna Accessories',         slug: 'sauna-accessories',         url: 'https://nakednutrition.com/collections/sauna-accessories' },
-  { label: 'Saunas',                    slug: 'saunas',                    url: 'https://nakednutrition.com/collections/saunas' },
-  { label: 'Sensory Deprivation Tanks', slug: 'sensory-deprivation-tanks', url: 'https://nakednutrition.com/collections/sensory-deprivation-tanks' },
-  { label: 'Steam',                     slug: 'steam',                     url: 'https://nakednutrition.com/collections/steam' },
-  { label: 'Traditional Saunas',        slug: 'traditional-saunas',        url: 'https://nakednutrition.com/collections/traditional-saunas' },
-  { label: 'Water Ionizers',            slug: 'water-ionizers',            url: 'https://nakednutrition.com/collections/water-ionizers' },
+  { label: 'Protein Powder',                slug: 'protein-powder',                    url: 'https://nakednutrition.com/collections/protein-powder' },
+  { label: 'Whey Protein',                  slug: 'whey-protein',                      url: 'https://nakednutrition.com/collections/whey-protein' },
+  { label: 'Collagen Peptides',             slug: 'collagen-peptides',                 url: 'https://nakednutrition.com/collections/collagen-peptides' },
+  { label: 'Vegan Protein Powder',          slug: 'vegan-protein-powder',              url: 'https://nakednutrition.com/collections/vegan-protein-powder' },
+  { label: 'Overnight Oats',               slug: 'overnight-oats',                    url: 'https://nakednutrition.com/collections/overnight-oats' },
+  { label: 'Performance & Recovery',        slug: 'improve-performance-recovery',      url: 'https://nakednutrition.com/collections/improve-performance-recovery' },
+  { label: 'Supplements',                  slug: 'supplements',                       url: 'https://nakednutrition.com/collections/supplements' },
+  { label: 'Kids',                         slug: 'kids',                              url: 'https://nakednutrition.com/collections/kids' },
 ]
 
 export async function GET() {
@@ -93,38 +88,27 @@ export async function GET() {
   } catch (e) { results['products_check'] = `ERROR: ${e}` }
 
   
-  // --- Collections registry cleanup (2026-03-12) ---
+  // --- Collections registry cleanup (2026-03-20): remove legacy wellness-equipment rows ---
+  // These were from a previous project and have no relation to Naked Nutrition's store
+  const LEGACY_WELLNESS_SLUGS = [
+    'barrel-saunas', 'cold-plunges', 'hydrogen-water', 'hyperbaric-chambers',
+    'infrared-saunas', 'pilates', 'red-light-therapy', 'sauna-accessories', 'saunas',
+    'sensory-deprivation-tanks', 'steam', 'traditional-saunas', 'water-ionizers',
+    'float-tanks', 'cold-plunge', 'pilates-equipment', 'massage-equipment',
+    'compression-boots', 'recovery-tools', 'general-wellness', 'air-filters',
+    'treadmills', 'elliptical-machines', 'exercise-bikes', 'stair-climbers',
+    'vertical-climbers', 'sauna-heaters',
+  ]
   try {
-    // Remove deprecated built-in collections
-    await sql`DELETE FROM collections_registry WHERE slug = 'float-tanks'`
-    await sql`DELETE FROM collections_registry WHERE slug = 'cold-plunge'`
-    await sql`DELETE FROM collections_registry WHERE slug = 'pilates-equipment'`
-    results['collections_cleanup'] = 'Removed float-tanks, cold-plunge, and pilates-equipment'
-  } catch (e) { results['collections_cleanup'] = `ERROR: ${e}` }
-
-  try {
-    // Upsert all current built-in collections (including cardio + corrected slugs)
-    await sql`
-      INSERT INTO collections_registry (slug, label, is_builtin) VALUES
-        ('saunas', 'Saunas', TRUE),
-        ('cold-plunges', 'Cold Plunges', TRUE),
-        ('red-light-therapy', 'Red Light Therapy', TRUE),
-        ('hyperbaric-chambers', 'Hyperbaric Chambers', TRUE),
-        ('massage-equipment', 'Massage Equipment', TRUE),
-        ('recovery-tools', 'Recovery Tools', TRUE),
-        ('general-wellness', 'General Wellness', TRUE),
-        ('steam', 'Steam', TRUE),
-        ('sensory-deprivation-tanks', 'Sensory Deprivation Tanks', TRUE),
-        ('elliptical-machines', 'Elliptical Machines', TRUE),
-        ('exercise-bikes', 'Exercise Bikes', TRUE),
-        ('treadmills', 'Treadmills', TRUE),
-        ('stair-climbers', 'Stair Climbers', TRUE),
-        ('vertical-climbers', 'Vertical Climbers', TRUE),
-        ('pilates', 'Pilates', TRUE)
-      ON CONFLICT (slug) DO UPDATE SET label = EXCLUDED.label, is_builtin = EXCLUDED.is_builtin
-    `
-    results['collections_upsert'] = 'All 15 built-in collections upserted'
-  } catch (e) { results['collections_upsert'] = `ERROR: ${e}` }
+    let removed = 0
+    for (const slug of LEGACY_WELLNESS_SLUGS) {
+      try {
+        await sql`DELETE FROM collections_registry WHERE slug = ${slug} AND is_builtin = TRUE`
+        removed++
+      } catch { /* skip */ }
+    }
+    results['collections_legacy_cleanup'] = `Removed up to ${removed} legacy wellness-equipment entries`
+  } catch (e) { results['collections_legacy_cleanup'] = `ERROR: ${e}` }
 
   try {
     await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS article_type TEXT`

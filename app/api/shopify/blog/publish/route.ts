@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
       published,
       featuredImageUrl,
       featuredImageAlt,
+      category,
     } = await request.json();
 
     if (!title || !bodyHtml) {
@@ -85,19 +86,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If no blogId provided, find the first blog
+    // If no blogId provided, resolve the right NN blog based on article category
     let targetBlogId = blogId;
     if (!targetBlogId) {
       const blogsData = await shopifyAdminFetch("blogs.json");
-      const blogs = blogsData.blogs || [];
+      const blogs: { id: number; handle: string }[] = blogsData.blogs || [];
 
-      const wellnessBlog = blogs.find(
-        (b: { handle: string }) =>
-          b.handle === "wellness" ||
-          b.handle === "wellness-hub" ||
-          b.handle === "news"
-      );
-      targetBlogId = wellnessBlog?.id || blogs[0]?.id;
+      // Map article category → preferred NN blog handle
+      const CATEGORY_TO_BLOG: Record<string, string> = {
+        'protein-powder': 'protein',
+        'whey-protein': 'protein',
+        'vegan-protein-powder': 'protein',
+        'collagen-peptides': 'wellness',
+        'overnight-oats': 'recipes',
+        'improve-performance-recovery': 'fitness',
+        'supplements': 'supplements',
+        'kids': 'wellness',
+        // NNCategory fallbacks
+        'creatine': 'supplements',
+        'pre-workout': 'supplements',
+        'post-workout': 'fitness',
+        'bcaa': 'supplements',
+        'greens': 'supplements',
+        'vitamins': 'supplements',
+        'probiotics': 'supplements',
+        'energy': 'supplements',
+        'weight-management': 'diets',
+        'keto': 'diets',
+        'vegan': 'protein',
+        'collagen': 'wellness',
+      }
+      const preferredHandle = CATEGORY_TO_BLOG[category] || 'news'
+      const preferredBlog = blogs.find((b) => b.handle === preferredHandle)
+      const fallback = blogs.find((b) => b.handle === 'news') || blogs[0]
+      targetBlogId = preferredBlog?.id || fallback?.id
 
       if (!targetBlogId) {
         return NextResponse.json(

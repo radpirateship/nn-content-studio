@@ -70,36 +70,26 @@ export async function GET() {
       ORDER BY t.table_name
     `
 
-    // Get row counts for each table (separate queries for accuracy)
-    const tables = []
-    for (const t of tablesResult) {
-      try {
-        const countResult = await sql`
-          SELECT COUNT(*) as count FROM ${sql(t.table_name)}
-        `.catch(() => [{ count: -1 }])
-        // Neon's sql() tagged literal doesn't support dynamic table names this way
-        // Use a different approach
-        tables.push({
-          name: t.table_name,
-          columns: Number(t.column_count),
-          rows: -1, // will fill below
-        })
-      } catch {
-        tables.push({ name: t.table_name, columns: Number(t.column_count), rows: -1 })
-      }
-    }
+    // Get row counts using pg's reltuples estimate (fast, no locks) then exact for small tables
+    // Neon's tagged template literal doesn't support dynamic identifiers, so we use a single
+    // query that aggregates counts across all known tables via CASE in information_schema
+    const rowCountResult = await sql`
+      SELECT
+        t.table_name,
+        (SELECT COUNT(*) FROM information_schema.columns c
+         WHERE c.table_name = t.table_name AND c.table_schema = 'public') as column_count,
+        COALESCE(s.n_live_tup, -1)::bigint as approx_rows
+      FROM information_schema.tables t
+      LEFT JOIN pg_stat_user_tables s ON s.relname = t.table_name
+      WHERE t.table_schema = 'public' AND t.table_type = 'BASE TABLE'
+      ORDER BY t.table_name
+    `
 
-    // Get actual row counts with direct queries for known tables
-    const knownTables = ['articles', 'products', 'topical_authority', 'collections', 'collections_registry', 'ultimate_guides', 'revamp_sources', 'blog_posts', 'resources', 'guide_templates', 'workshop_reviews', 'activity_log']
-    for (const tableName of knownTables) {
-      try {
-        const result = await sql`SELECT COUNT(*) as n FROM ${sql(tableName)}`
-        const existing = tables.find(t => t.name === tableName)
-        if (existing) existing.rows = Number(result[0]?.n ?? 0)
-      } catch {
-        // Table might not exist yet
-      }
-    }
+    const tables = rowCountResult.map((t: Record<string, unknown>) => ({
+      name: String(t.table_name),
+      columns: Number(t.column_count),
+      rows: Number(t.approx_rows),
+    }))
 
     // Sample data from key tables
     const samples: Record<string, unknown[]> = {}

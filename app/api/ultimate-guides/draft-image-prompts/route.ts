@@ -62,8 +62,8 @@ export async function POST(request: NextRequest) {
       `  ${i + 1}. id="${s.id}" — "${s.text}"`
     ).join('\n')
 
-    const systemPrompt = `You are an expert Technical Illustrator and Brand Visualist for Naked Nutrition, 
-a premium wellness e-commerce brand selling saunas, cold plunges, steam generators, and float tanks.
+    const systemPrompt = `You are an expert Technical Illustrator and Brand Visualist for Naked Nutrition (nakednutrition.com),
+a premium supplement brand selling protein powder, collagen peptides, creatine, pre-workout, BCAAs, greens, and sports nutrition products.
 
 Your task: Draft image concepts for an EVERGREEN PRODUCT GUIDE — one hero image plus one technical image per eligible section. (not a news article or blog post).
 Images must be timeless, educational, and professional — no trend references, no dates.

@@ -350,32 +350,35 @@ async function regenerateTags(
   ];
 
   const CATEGORY_TAGS: Record<string, string> = {
-    saunas: "Saunas",
-    "barrel-saunas": "Saunas",
-    "cold-plunge": "Recovery",
-    "red-light-therapy": "Recovery",
-    "hyperbaric-chambers": "Wellness",
-    "hydrogen-water": "Wellness",
-    "water-ionizers": "Wellness",
-    "sauna-heaters": "Saunas",
-    "sauna-accessories": "Saunas",
-    "massage-equipment": "Recovery",
-    "recovery-tools": "Recovery",
-    "sensory-deprivation-tanks": "Wellness",
-    "general-wellness": "Wellness",
-    steam: "Saunas",
-    "elliptical-machines": "Fitness",
-    "exercise-bikes": "Fitness",
-    treadmills: "Fitness",
-    "stair-climbers": "Fitness",
-    "vertical-climbers": "Fitness",
-    pilates: "Fitness",
+    "protein-powder": "Protein",
+    "whey-protein": "Protein",
+    "vegan-protein-powder": "Protein",
+    "collagen-peptides": "Collagen",
+    "overnight-oats": "Nutrition",
+    "improve-performance-recovery": "Performance",
+    "supplements": "Supplements",
+    "kids": "Kids",
+    // NNCategory fallbacks
+    "creatine": "Supplements",
+    "pre-workout": "Performance",
+    "post-workout": "Performance",
+    "bcaa": "Supplements",
+    "collagen": "Collagen",
+    "greens": "Supplements",
+    "fiber": "Supplements",
+    "vitamins": "Supplements",
+    "probiotics": "Supplements",
+    "energy": "Supplements",
+    "weight-management": "Supplements",
+    "keto": "Supplements",
+    "vegan": "Protein",
+    "general-nutrition": "Nutrition",
   };
 
-  const parentCategory = CATEGORY_TAGS[category] || "Wellness";
+  const parentCategory = CATEGORY_TAGS[category] || "Supplements";
 
   // Use AI to determine the article type
-  const systemPrompt = `You classify wellness articles into exactly one type. Return ONLY the type name â no explanation.
+  const systemPrompt = `You classify nutrition and supplement articles into exactly one type. Return ONLY the type name — no explanation.
 Types: ${ARTICLE_TYPES.join(", ")}`;
 
   const bodyText = (article.body_html || "")
@@ -434,8 +437,8 @@ function assignBadge(products: { price?: string }[], index: number): { label: st
 
 function getShortName(title: string): string {
   const cleaned = title
-    .replace(/^(dynamic|maxxus|golden designs|sun home|medical breakthrough|therasage|echo|tyent|life)\s+/i, '')
-    .replace(/\s+(low emf|far ir|infrared|sauna|cold plunge|red light|therapy)\s*$/i, '')
+    .replace(/^(naked nutrition|naked|nn)\s+/i, '')
+    .replace(/\s+(powder|protein|supplement|formula|blend|complex)\s*$/i, '')
     .trim();
   const words = cleaned.split(/\s+/).slice(0, 3);
   return words.join(' ') || title.split(/\s+/).slice(0, 2).join(' ');
@@ -448,25 +451,23 @@ function extractFeatures(product: { title: string; description?: string; tags?: 
   const title = (product.title || '').toLowerCase();
   const combined = `${title} ${desc} ${tags}`;
 
+  // Supplement-specific feature detection
   const featureMap: [RegExp, string][] = [
-    [/low[\s-]?emf/i, 'Low EMF Certified'],
-    [/full[\s-]?spectrum/i, 'Full Spectrum Heating'],
-    [/chromotherapy/i, 'Chromotherapy Lighting'],
-    [/bluetooth|speaker|audio/i, 'Built-In Audio System'],
-    [/carbon[\s-]?heat/i, 'Carbon Heating Panels'],
-    [/canadian[\s-]?(red\s)?cedar/i, 'Canadian Cedar Construction'],
-    [/stainless[\s-]?steel/i, 'Stainless Steel Construction'],
-    [/wifi|wi-fi|app[\s-]?control/i, 'WiFi & App Control'],
-    [/outdoor/i, 'Outdoor-Rated Design'],
-    [/barrel/i, 'Classic Barrel Design'],
-    [/chiller|cooling/i, 'Active Cooling System'],
-    [/ozone|filtration/i, 'Advanced Filtration'],
-    [/hydrogen[\s-]?rich/i, 'Hydrogen-Rich Water'],
-    [/red[\s-]?light|led[\s-]?panel/i, 'Medical-Grade LEDs'],
-    [/float[\s-]?tank|sensory[\s-]?deprivation/i, 'Sensory Deprivation Tank'],
-    [/hyperbaric/i, 'Hyperbaric Pressure Chamber'],
-    [/steam[\s-]?generator/i, 'Integrated Steam Generator'],
-    [/commercial[\s-]?grade/i, 'Commercial-Grade Build'],
+    [/third.party[\s-]?test|nsf|informed[\s-]?sport|informed[\s-]?choice/i, 'Third-Party Tested'],
+    [/grass.?fed/i, 'Grass-Fed Whey'],
+    [/cold[\s-]?process/i, 'Cold-Processed'],
+    [/no[\s-]?artificial|all[\s-]?natural|clean[\s-]?ingredient/i, 'No Artificial Ingredients'],
+    [/gluten[\s-]?free/i, 'Gluten-Free'],
+    [/sugar[\s-]?free|zero[\s-]?sugar/i, 'Sugar-Free'],
+    [/vegan|plant[\s-]?based/i, 'Plant-Based'],
+    [/whey[\s-]?isolate/i, 'Whey Isolate'],
+    [/whey[\s-]?concentrate/i, 'Whey Concentrate'],
+    [/hydrolyz/i, 'Hydrolyzed Protein'],
+    [/microniz/i, 'Micronized Formula'],
+    [/clinically[\s-]?dos/i, 'Clinically Dosed'],
+    [/non[\s-]?gmo/i, 'Non-GMO'],
+    [/keto/i, 'Keto-Friendly'],
+    [/collagen|peptide/i, 'Collagen Peptides'],
   ];
 
   for (const [pattern, label] of featureMap) {
@@ -475,15 +476,14 @@ function extractFeatures(product: { title: string; description?: string; tags?: 
     }
   }
 
-  const genericFeatures = ['Free Shipping Included', 'Expert US-Based Support', 'Quality Inspected Before Shipping'];
+  const genericFeatures = ['Free Shipping on Orders $99+', 'USA Manufactured', 'Money-Back Guarantee'];
   for (const gf of genericFeatures) {
     if (features.length >= 3) break;
     features.push(gf);
   }
 
-  features.unshift('White-Glove Delivery Included');
   const trimmed = features.slice(0, 3);
-  trimmed.push('Ongoing Expert Phone Support');
+  trimmed.push('30-Day Return Policy');
   return trimmed;
 }
 
