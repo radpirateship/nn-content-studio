@@ -32,7 +32,7 @@ export function ArticleEditor({ article, onSave, onCancel, onRegenerate }: Artic
 
   const handleSave = () => {
     // Recalculate word count
-    const textContent = editedArticle.htmlContent.replace(/<[^>]*>/g, ' ')
+    const textContent = (editedArticle.htmlContent || '').replace(/<[^>]*>/g, ' ')
     const wordCount = textContent.split(/\s+/).filter(Boolean).length
     
     onSave({
@@ -106,7 +106,7 @@ export function ArticleEditor({ article, onSave, onCancel, onRegenerate }: Artic
               </div>
               <Textarea
                 id="content"
-                value={editedArticle.htmlContent}
+                value={editedArticle.htmlContent || ''}
                 onChange={(e) => setEditedArticle(prev => ({ ...prev, htmlContent: e.target.value }))}
                 className="min-h-[400px] font-mono text-sm"
               />
@@ -119,12 +119,12 @@ export function ArticleEditor({ article, onSave, onCancel, onRegenerate }: Artic
               <Label htmlFor="metaDesc">Meta Description</Label>
               <Textarea
                 id="metaDesc"
-                value={editedArticle.metaDescription}
+                value={editedArticle.metaDescription || ''}
                 onChange={(e) => setEditedArticle(prev => ({ ...prev, metaDescription: e.target.value }))}
                 className="min-h-[100px]"
               />
               <p className="text-xs text-muted-foreground">
-                {editedArticle.metaDescription.length} / 160 characters
+                {(editedArticle.metaDescription || '').length} / 160 characters
               </p>
             </div>
 
@@ -150,7 +150,7 @@ export function ArticleEditor({ article, onSave, onCancel, onRegenerate }: Artic
               <Label htmlFor="schema">Schema Markup (JSON-LD)</Label>
               <Textarea
                 id="schema"
-                value={editedArticle.schemaMarkup}
+                value={editedArticle.schemaMarkup || ''}
                 onChange={(e) => setEditedArticle(prev => ({ ...prev, schemaMarkup: e.target.value }))}
                 className="min-h-[200px] font-mono text-xs"
               />
@@ -164,7 +164,7 @@ export function ArticleEditor({ article, onSave, onCancel, onRegenerate }: Artic
                 <h1 className="mb-4 text-3xl font-bold">{editedArticle.title}</h1>
                 <article 
                   className="prose prose-neutral max-w-none dark:prose-invert"
-                  dangerouslySetInnerHTML={{ __html: editedArticle.htmlContent }}
+                  dangerouslySetInnerHTML={{ __html: editedArticle.htmlContent || '' }}
                 />
               </div>
             </ScrollArea>
