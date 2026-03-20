@@ -152,6 +152,12 @@ export default function ContentStudio() {
 
   const updateArticleInDb = async (article: GeneratedArticle) => {
     if (!article.dbId) return
+    // Cancel any pending auto-save to avoid racing with this manual save
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current)
+      autoSaveTimerRef.current = null
+    }
+    isSavingRef.current = true
     try {
       const payload: Record<string, unknown> = {
         id: article.dbId,
@@ -169,34 +175,71 @@ export default function ContentStudio() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
+      // Update the auto-save fingerprint so it doesn't re-save the same content
+      const content = article.htmlContent || ''
+      const len = content.length
+      const quarter = Math.max(1, Math.floor(len / 4))
+      const sample =
+        content.slice(0, 128) +
+        content.slice(quarter, quarter + 128) +
+        content.slice(quarter * 2, quarter * 2 + 128) +
+        content.slice(-128) +
+        len
+      let hash = 5381
+      for (let i = 0; i < sample.length; i++) {
+        hash = ((hash << 5) + hash + sample.charCodeAt(i)) | 0
+      }
+      lastSavedRef.current = `${article.dbId}-${hash}`
+      autoSaveFailCountRef.current = 0
     } catch (error) {
       console.error('[updateArticleInDb] Failed to update article:', error)
       toast.error('Failed to update article in database')
+    } finally {
+      isSavingRef.current = false
     }
   }
 
   // Auto-save: debounced save of current article to DB (30s after last change)
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedRef = useRef<string>('')
+  const isSavingRef = useRef(false)
+  const autoSaveFailCountRef = useRef(0)
   useEffect(() => {
     if (!currentArticle?.dbId || !currentArticle.htmlContent) return
-    // Create a content fingerprint using a lightweight hash to detect real changes
-    // (length-only fingerprints miss edits that don't change character count)
+    // Create a content fingerprint using djb2 hash over evenly-spaced samples.
+    // Samples from 4 positions across the full content to catch mid-article edits.
     const content = currentArticle.htmlContent
-    const hashSample = content.slice(0, 128) + content.slice(-128) + content.length
-    let hash = 0
-    for (let i = 0; i < hashSample.length; i++) {
-      hash = ((hash << 5) - hash + hashSample.charCodeAt(i)) | 0
+    const len = content.length
+    const quarter = Math.max(1, Math.floor(len / 4))
+    const sample =
+      content.slice(0, 128) +
+      content.slice(quarter, quarter + 128) +
+      content.slice(quarter * 2, quarter * 2 + 128) +
+      content.slice(-128) +
+      len
+    let hash = 5381
+    for (let i = 0; i < sample.length; i++) {
+      hash = ((hash << 5) + hash + sample.charCodeAt(i)) | 0
     }
     const fingerprint = `${currentArticle.dbId}-${hash}`
     if (fingerprint === lastSavedRef.current) return
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     autoSaveTimerRef.current = setTimeout(async () => {
+      if (isSavingRef.current) return // skip if a manual save is in progress
+      isSavingRef.current = true
       try {
         await updateArticleInDb(currentArticle)
         lastSavedRef.current = fingerprint
+        autoSaveFailCountRef.current = 0
       } catch {
-        // Silent — manual save still works as fallback
+        autoSaveFailCountRef.current += 1
+        if (autoSaveFailCountRef.current === 1) {
+          toast.warning('Auto-save failed', { description: 'Your latest edits may not be saved. Try saving manually.' })
+        } else if (autoSaveFailCountRef.current >= 3) {
+          toast.error('Auto-save unavailable', { description: 'Multiple save attempts failed. Please save manually or check your connection.' })
+        }
+      } finally {
+        isSavingRef.current = false
       }
     }, 30_000)
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current) }
@@ -239,7 +282,7 @@ export default function ContentStudio() {
       "dateModified": now,
       "mainEntityOfPage": {
         "@type": "WebPage",
-        "@id": `https://nakednutrition.com/blogs/news/${article.slug}`,
+        "@id": `https://nakednutrition.com/blogs/${article.shopifyBlogHandle || 'news'}/${article.slug}`,
       },
       ...(article.wordCount ? { "wordCount": article.wordCount } : {}),
       ...(article.category ? { "articleSection": article.category.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) } : {}),
@@ -959,6 +1002,15 @@ export default function ContentStudio() {
             onViewLibrary={() => setActiveView('library')}
             onViewQueue={() => setActiveView('queue')}
             onStatusChange={handleStatusChange}
+            onArticleUpdate={(updates) => {
+              if (!currentArticle) return
+              const updated = { ...currentArticle, ...updates }
+              // Regenerate schema with the new blog handle
+              updated.schemaMarkup = generateSchemaMarkup(updated)
+              setCurrentArticle(updated)
+              setArticles(prev => prev.map(a => a.id === updated.id ? updated : a))
+              updateArticleInDb(updated)
+            }}
           />
         )}
 

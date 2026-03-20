@@ -11,6 +11,16 @@ import {
   Link2,
   ImageIcon,
 } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import type { GeneratedArticle, ArticleStatus } from '@/lib/types'
 import { CATEGORY_LABELS } from '@/lib/types'
 
@@ -191,6 +201,7 @@ function ArticleCard({
   onDelete: (id: string) => void
   onStatusChange?: (id: string, status: ArticleStatus) => void
 }) {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const createdAt = article.createdAt ? new Date(article.createdAt) : new Date()
   const categoryLabel = (CATEGORY_LABELS[article.category as keyof typeof CATEGORY_LABELS] ?? article.category ?? 'Unknown')
   const title = article.title || 'Untitled Article'
@@ -281,7 +292,7 @@ function ArticleCard({
           </button>
         )}
         <button
-          onClick={(e) => { e.stopPropagation(); onDelete(article.id) }}
+          onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true) }}
           className="ml-auto flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-all hover:opacity-80"
           style={{ color: 'var(--text4)' }}
           title="Delete article"
@@ -289,6 +300,27 @@ function ArticleCard({
           <Trash2 className="h-3 w-3" />
         </button>
       </div>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete article?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete &ldquo;{title}&rdquo; and all its enrichments (links, images). This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => onDelete(article.id)}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

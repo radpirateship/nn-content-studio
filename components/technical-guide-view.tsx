@@ -227,7 +227,7 @@ export function TechnicalGuideView() {
         <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
           <TableRow label="Framework" value="Next.js 16.0.10 (App Router, Turbopack)" />
           <TableRow label="React" value="19.2.0" />
-          <TableRow label="Language" value="TypeScript (strict mode OFF — ignoreBuildErrors: true)" />
+          <TableRow label="Language" value="TypeScript (strict mode, build errors enforced)" />
           <TableRow label="Hosting" value="Vercel (Serverless Functions + Edge CDN)" />
           <TableRow label="Styling" value="Tailwind CSS 4 + CSS custom properties (var(--nn-accent), etc.)" />
           <TableRow label="UI Library" value="Radix UI primitives via shadcn/ui" />
@@ -241,10 +241,8 @@ export function TechnicalGuideView() {
         </div>
 
         <Warning>
-          TypeScript is configured with <Code>ignoreBuildErrors: true</Code> in next.config — the codebase
-          has some pre-existing type errors that don&apos;t affect runtime behavior but will show up if
-          you run <Code>npx tsc --noEmit</Code>. These are mostly around missing type exports and
-          Shopify-related interfaces.
+          TypeScript build errors are enforced — the build will fail if type errors are introduced.
+          Run <Code>npx tsc --noEmit</Code> locally before deploying to catch issues early.
         </Warning>
 
         {/* ============================================================ */}

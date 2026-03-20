@@ -13,6 +13,7 @@ interface PublishConfirmViewProps {
   onViewLibrary: () => void
   onViewQueue: () => void
   onStatusChange?: (id: string, status: 'draft' | 'reviewing' | 'approved' | 'published' | 'failed') => void
+  onArticleUpdate?: (updates: Partial<GeneratedArticle>) => void
 }
 
 type PublishPhase = 'pre-publish' | 'publishing' | 'success' | 'error'
@@ -22,7 +23,7 @@ interface ChecklistItem {
   status: 'done' | 'warn' | 'skip'
 }
 
-export function PublishConfirmView({ article, onBackToEditor, onNewArticle, onViewLibrary, onViewQueue, onStatusChange }: PublishConfirmViewProps) {
+export function PublishConfirmView({ article, onBackToEditor, onNewArticle, onViewLibrary, onViewQueue, onStatusChange, onArticleUpdate }: PublishConfirmViewProps) {
   const [phase, setPhase] = useState<PublishPhase>('pre-publish')
   const [shopifyUrl, setShopifyUrl] = useState<string | null>(null)
   const [publishError, setPublishError] = useState<string | null>(null)
@@ -71,10 +72,13 @@ export function PublishConfirmView({ article, onBackToEditor, onNewArticle, onVi
 
       const result = await response.json()
       const returnedUrl = result.article?.url
-      const fallbackUrl = `https://nakednutrition.com/blogs/news/${result.article?.handle || article.slug || 'article'}`
+      const resolvedBlogHandle = result.blogHandle || 'news'
+      const fallbackUrl = `https://nakednutrition.com/blogs/${resolvedBlogHandle}/${result.article?.handle || article.slug || 'article'}`
       setShopifyUrl(returnedUrl || fallbackUrl)
       setPublishedAt(new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }))
       setPhase('success')
+      // Store the resolved blog handle so schema markup uses the correct URL
+      onArticleUpdate?.({ shopifyBlogHandle: resolvedBlogHandle })
       onStatusChange?.(article.id, 'published')
     } catch (err) {
       setPublishError(err instanceof Error ? err.message : 'Failed to publish')
@@ -82,11 +86,12 @@ export function PublishConfirmView({ article, onBackToEditor, onNewArticle, onVi
     }
   }
 
-  const liveUrl = shopifyUrl || `https://nakednutrition.com/blogs/news/${article.slug}`
+  const blogHandle = article.shopifyBlogHandle || 'news'
+  const liveUrl = shopifyUrl || `https://nakednutrition.com/blogs/${blogHandle}/${article.slug}`
 
   const detailRows = [
     { label: 'Title', value: article.title },
-    { label: 'URL', value: `/blogs/news/${article.slug}`, href: liveUrl },
+    { label: 'URL', value: `/blogs/${blogHandle}/${article.slug}`, href: liveUrl },
     { label: 'Category', value: article.category?.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) },
     { label: 'Word Count', value: article.wordCount?.toLocaleString() || '--' },
     ...(publishedAt ? [{ label: 'Published', value: publishedAt }] : []),

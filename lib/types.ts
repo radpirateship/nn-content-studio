@@ -73,6 +73,7 @@ export interface GeneratedArticle {
   imageCount?: number
   // Shopify integration
   shopifyBlogTag?: string
+  shopifyBlogHandle?: string // Resolved blog handle from publish (e.g., 'protein', 'wellness', 'news')
   sourceType?: 'new' | 'revamp'
   originalShopifyId?: number
   imageStoryboard?: ImageStoryboardDraft | null
