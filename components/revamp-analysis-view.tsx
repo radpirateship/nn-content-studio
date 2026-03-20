@@ -92,6 +92,7 @@ export function RevampAnalysisView({
         ]
       })()
 
+  const usingFallbackOutline = !analysis.suggestedOutline?.length
   const [outline, setOutline] = useState<OutlineSectionState[]>(initialOutline)
 
   const [isGenerating, setIsGenerating] = useState(false)
@@ -459,6 +460,20 @@ export function RevampAnalysisView({
               <h1 className="font-serif text-[24px] font-semibold mb-6" style={{ color: 'var(--text1)' }}>
                 Article Outline
               </h1>
+
+              {usingFallbackOutline && (
+                <div
+                  className="flex items-start gap-3 rounded-lg border px-4 py-3 mb-5 text-[13px]"
+                  style={{ background: '#fef9ec', borderColor: '#f0d78c', color: '#7a5c1e' }}
+                >
+                  <AlertCircle size={16} className="mt-0.5 shrink-0" style={{ color: '#b8860b' }} />
+                  <div>
+                    <span className="font-semibold">Default outline generated.</span>{' '}
+                    The AI analysis didn&apos;t return a structured outline for this content, so a standard Naked Nutrition template has been applied.
+                    Feel free to edit the headings and key points below before generating.
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-4">
                 {outline.map(section => (
