@@ -56,7 +56,7 @@ Content rules:
 - NEVER use rem CSS units — always use em
 - NEVER generate <style> or <script> tags — CSS is already in the template
 - Return ONLY the requested HTML fragment — no preamble, no markdown fences, no explanation
-- Use the exact class names specified — do not invent new ones- Internal links use format: <a href="/blogs/wellness/SLUG">Anchor text</a>
+- Use the exact class names specified — do not invent new ones- Internal links use format: <a href="/blogs/news/SLUG">Anchor text</a>
 - All headings inside sections are h3 or h4 ÃÂ¢ÃÂÃÂ NEVER h2 (h2 is the section header, hardcoded in template)
 - FORMATTING RULE: You are strictly forbidden from using <strong> or <b> tags inside paragraph (<p>) text. Bolding is ONLY allowed at the very beginning of list items (<li>) to label the point. Do not bold statistics, phrases, or sentences in the body copy.
 - CRITICAL: Keep paragraphs to 2-4 sentences MAX. Break up long blocks of text.
@@ -84,9 +84,9 @@ function buildWhatIsPrompt(ctx: SectionContext): string {
 
 Your output MUST begin with this EXACT stat box structure (filled in with a relevant key stat for ${ctx.topicShort}), followed by the paragraphs. Do NOT delete or skip the stat box:
 
-<div class="ppw-stat-box" style="float: right; width: 280px; margin: 0 0 1.5em 2em;">
-  <span class="ppw-stat-value">{{A key number/stat relevant to ${ctx.topicShort}}}</span>
-  <span class="ppw-stat-label">{{Short description of the stat, 5-8 words}}</span>
+<div class="nn-stat-box" style="float: right; width: 280px; margin: 0 0 1.5em 2em;">
+  <span class="nn-stat-value">{{A key number/stat relevant to ${ctx.topicShort}}}</span>
+  <span class="nn-stat-label">{{Short description of the stat, 5-8 words}}</span>
 </div>
 <p>{{INTRO -- 3-4 sentences defining what ${ctx.topicShort} is, why it matters for recovery and wellness, and how it fits into a modern health-conscious lifestyle.}}</p>
 <p>{{HISTORY -- 3-4 sentences on the history and cultural origins. Mention specific civilizations, time periods, or traditions.}}</p>
@@ -124,8 +124,8 @@ function buildTypesPrompt(ctx: SectionContext): string {
 ${subcatHint}
 Return this structure:
 <p>{{INTRO Ã¢ÂÂ 3Ã¢ÂÂ4 sentences on how ${ctx.topicShortPlural} vary and why the type matters for goals, space, and budget.}}</p>
-<div class="ppw-table-wrap">
-  <table class="ppw-table">
+<div class="nn-table-wrap">
+  <table class="nn-table">
     <thead><tr><th>Type</th><th>Best For</th><th>Key Spec</th><th>Price Range</th></tr></thead>
     <tbody>{{4Ã¢ÂÂ6 <tr> rows, one per type, with specific content in each <td>}}</tbody>
   </table>
@@ -142,15 +142,15 @@ function buildHealthBenefitsPrompt(ctx: SectionContext, clusterLinks: Array<{tit
     .filter(l => /benefit|health|recover|sleep|stress|immune|mental|weight|pain|inflam/i.test(l.title))
     .slice(0, 3)
   const linkHtml = benefitLinks.map(l =>
-    `<a href="/blogs/wellness/${l.slug}">${l.title}</a>`
+    `<a href="/blogs/news/${l.slug}">${l.title}</a>`
   ).join(', ')
   return `Generate the Health Benefits section for the "${ctx.guideTitle}" guide.
 Return this structure with 6 benefit cards PLUS expanded research detail:
 <p>{{INTRO Ã¢ÂÂ 3Ã¢ÂÂ4 sentences on the breadth of researched benefits. Reference growing peer-reviewed research.}}</p>
-<div class="ppw-benefits-grid">
+<div class="nn-benefits-grid">
   {{6 benefit cards, each using this structure:}}
-  <div class="ppw-benefit-card">
-    <span class="ppw-benefit-icon">{{EMOJI}}</span>
+  <div class="nn-benefit-card">
+    <span class="nn-benefit-icon">{{EMOJI}}</span>
     <h4>{{BENEFIT_TITLE Ã¢ÂÂ 2Ã¢ÂÂ4 words}}</h4>
     <p>{{BENEFIT_DESC Ã¢ÂÂ 2Ã¢ÂÂ3 sentences with specific mechanism, research context, and measurable outcome.}}</p>
   </div>
@@ -168,7 +168,7 @@ function buildHowToUsePrompt(ctx: SectionContext, clusterLinks: Array<{title:str
     .filter(l => /how|protocol|guide|beginner|start|routine|tips|schedule/i.test(l.title))
     .slice(0, 2)
   const linkPara = protocolLinks.length > 0
-    ? `<p>For more detailed protocols, see: ${protocolLinks.map(l => `<a href="/blogs/wellness/${l.slug}">${l.title}</a>`).join(' and ')}.</p>`
+    ? `<p>For more detailed protocols, see: ${protocolLinks.map(l => `<a href="/blogs/news/${l.slug}">${l.title}</a>`).join(' and ')}.</p>`
     : ''
   return `Generate the "How to Use ${ctx.topicShort}" section for the "${ctx.guideTitle}" guide.
 Return this structure:
@@ -200,7 +200,7 @@ Return only the HTML, no wrappers.`
 function buildSafetyPrompt(ctx: SectionContext): string {
   return `Generate the Safety & Contraindications section for the "${ctx.guideTitle}" guide.
 Return this structure:
-<div class="ppw-callout-warn">
+<div class="nn-callout-warn">
   <p><strong>Medical disclaimer:</strong> {{ONE sentence advising consultation with a doctor for pre-existing conditions, pregnancy, or cardiovascular medications.}}</p>
 </div>
 <p>{{INTRO Ã¢ÂÂ 3Ã¢ÂÂ4 sentences establishing that ${ctx.topicShort} is safe for most healthy adults when used correctly, but understanding contraindications is essential.}}</p>
@@ -253,12 +253,12 @@ function buildFaqPrompt(ctx: SectionContext): string {
     : 'varies widely'
   return `Generate 8 FAQ items for the "${ctx.guideTitle}" guide.
 Each FAQ must use this EXACT HTML structure:
-<div class="ppw-faq-item">
-  <button class="ppw-faq-q" aria-expanded="false">
+<div class="nn-faq-item">
+  <button class="nn-faq-q" aria-expanded="false">
     {{QUESTION}}
-    <span class="ppw-faq-icon">+</span>
+    <span class="nn-faq-icon">+</span>
   </button>
-  <div class="ppw-faq-a">
+  <div class="nn-faq-a">
     <p>{{ANSWER Ã¢ÂÂ 3Ã¢ÂÂ5 sentences, thorough and specific. Include numbers, temperatures, durations, research-backed context.}}</p>
   </div>
 </div>
@@ -272,7 +272,7 @@ Cover these question types:
 7. Maintenance, installation, or setup question (practical details)
 8. Comparison question (vs. another modality Ã¢ÂÂ balanced, specific)
 Aim for 600Ã¢ÂÂ800 words across all 8 FAQs.
-Return 8 ppw-faq-item blocks, nothing else.`
+Return 8 nn-faq-item blocks, nothing else.`
 }
 
 function buildMetaPrompt(ctx: SectionContext): string {

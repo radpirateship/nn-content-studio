@@ -202,7 +202,7 @@ export function GuideImageStoryboard({ guide, onSave, onBack }: GuideImageStoryb
       .filter(l => l.url || l.anchor)
       .map(l => ({
         title: l.anchor || l.url,
-        slug: l.url?.replace('/blogs/wellness/', '') || '',
+        slug: l.url?.replace('/blogs/news/', '') || '',
         url: l.url,
         anchor: l.anchor,
       }))
@@ -221,7 +221,7 @@ export function GuideImageStoryboard({ guide, onSave, onBack }: GuideImageStoryb
             setClusterLinks(data.links.map((l: { title?: string; slug?: string; url?: string; anchor?: string }) => ({
               title: l.title || l.anchor || '',
               slug: l.slug || '',
-              url: l.url || (l.slug ? `/blogs/wellness/${l.slug}` : ''),
+              url: l.url || (l.slug ? `/blogs/news/${l.slug}` : ''),
               anchor: l.anchor || l.title || '',
             })))
           }

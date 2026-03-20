@@ -134,6 +134,8 @@ export default function ContentStudio() {
           featured_image_url: article.featuredImage?.url,
           word_count: article.wordCount,
           status: 'draft',
+          article_type: article.articleType || null,
+          shopify_blog_tag: article.shopifyBlogTag || null,
         }),
       })
       if (response.ok) {
@@ -172,8 +174,15 @@ export default function ContentStudio() {
   const lastSavedRef = useRef<string>('')
   useEffect(() => {
     if (!currentArticle?.dbId || !currentArticle.htmlContent) return
-    // Create a content fingerprint to detect real changes
-    const fingerprint = `${currentArticle.dbId}-${currentArticle.htmlContent.length}-${currentArticle.wordCount}`
+    // Create a content fingerprint using a lightweight hash to detect real changes
+    // (length-only fingerprints miss edits that don't change character count)
+    const content = currentArticle.htmlContent
+    const hashSample = content.slice(0, 128) + content.slice(-128) + content.length
+    let hash = 0
+    for (let i = 0; i < hashSample.length; i++) {
+      hash = ((hash << 5) - hash + hashSample.charCodeAt(i)) | 0
+    }
+    const fingerprint = `${currentArticle.dbId}-${hash}`
     if (fingerprint === lastSavedRef.current) return
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     autoSaveTimerRef.current = setTimeout(async () => {
@@ -187,6 +196,17 @@ export default function ContentStudio() {
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current) }
   }, [currentArticle])
 
+  // Warn before navigating away with unsaved changes (pending auto-save timer)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (autoSaveTimerRef.current) {
+        e.preventDefault()
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
+
   const updateProgress = (step: GenerationStep, progress: number, message: string) => {
     setGenerationStep(step)
     setGenerationProgress(progress)
@@ -197,7 +217,8 @@ export default function ContentStudio() {
     title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
   const generateSchemaMarkup = (article: Partial<GeneratedArticle>): string => {
-    const schema = {
+    const now = new Date().toISOString()
+    const schema: Record<string, unknown> = {
       "@context": "https://schema.org",
       "@type": "Article",
       "headline": article.title,
@@ -206,14 +227,17 @@ export default function ContentStudio() {
       "publisher": {
         "@type": "Organization",
         "name": "Naked Nutrition",
-        "logo": { "@type": "ImageObject", "url": "https://nakednutrition.com/logo.png" },
+        "logo": { "@type": "ImageObject", "url": "https://nakednutrition.com/cdn/shop/files/naked-nutrition-logo.png" },
       },
-      "datePublished": new Date().toISOString(),
-      "dateModified": new Date().toISOString(),
+      "datePublished": article.createdAt ? new Date(article.createdAt).toISOString() : now,
+      "dateModified": now,
       "mainEntityOfPage": {
         "@type": "WebPage",
-        "@id": `https://nakednutrition.com/blogs/wellness/${article.slug}`,
+        "@id": `https://nakednutrition.com/blogs/news/${article.slug}`,
       },
+      ...(article.wordCount ? { "wordCount": article.wordCount } : {}),
+      ...(article.category ? { "articleSection": article.category.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) } : {}),
+      ...(article.featuredImage?.url ? { "image": article.featuredImage.url } : {}),
     }
     if (article.faqs && article.faqs.length > 0) {
       return JSON.stringify([
@@ -339,16 +363,16 @@ export default function ContentStudio() {
             relatedList.push({
               title: (pillarPage as { title: string }).title,
               url: (pillarPage as { existingUrl: string }).existingUrl,
-              description: (pillarPage as { metaDescription?: string }).metaDescription || 'Your complete guide to this wellness topic.',
+              description: (pillarPage as { metaDescription?: string }).metaDescription || 'Your complete guide to this nutrition topic.',
             })
           }
           clusterPages.slice(5, 7).forEach((t: { title: string; existingUrl: string; metaDescription?: string }) => {
-            relatedList.push({ title: t.title, url: t.existingUrl, description: t.metaDescription || 'Continue your wellness journey.' })
+            relatedList.push({ title: t.title, url: t.existingUrl, description: t.metaDescription || 'Explore more from Naked Nutrition.' })
           })
           if (relatedList.length < 3) {
             clusterPages.slice(0, 3 - relatedList.length).forEach((t: { title: string; existingUrl: string; metaDescription?: string }) => {
               if (!relatedList.find(r => r.url === t.existingUrl)) {
-                relatedList.push({ title: t.title, url: t.existingUrl, description: t.metaDescription || 'Continue your wellness journey.' })
+                relatedList.push({ title: t.title, url: t.existingUrl, description: t.metaDescription || 'Explore more from Naked Nutrition.' })
               }
             })
           }

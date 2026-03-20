@@ -229,20 +229,20 @@ export function ArticleWorkshopView() {
       {
         label: 'Internal Links',
         key: 'internal-links',
-        pass: /href="\/blogs\/wellness\//i.test(body),
-        detail: (body.match(/href="\/blogs\/wellness\//gi) || []).length + ' internal links',
+        pass: /href="\/blogs\/news\//i.test(body),
+        detail: (body.match(/href="\/blogs\/news\//gi) || []).length + ' internal links',
       },
       {
         label: 'Featured Products',
         key: 'products',
-        pass: /ppw-card|ppw-product/i.test(body),
-        detail: /ppw-card|ppw-product/i.test(body) ? 'Product cards found' : 'No product cards',
+        pass: /nn-card|nn-product/i.test(body),
+        detail: /nn-card|nn-product/i.test(body) ? 'Product cards found' : 'No product cards',
       },
       {
         label: 'FAQ Section',
         key: 'faq',
-        pass: /<details|ppw-faq/i.test(body),
-        detail: /<details|ppw-faq/i.test(body) ? 'FAQ present' : 'No FAQ section',
+        pass: /<details|nn-faq/i.test(body),
+        detail: /<details|nn-faq/i.test(body) ? 'FAQ present' : 'No FAQ section',
       },
       {
         label: 'Meta Description',
@@ -312,7 +312,7 @@ export function ArticleWorkshopView() {
             newBody = newBody.replace(faqRegex, data.html)
           } else {
             // Insert before the CTA section or at the end
-            const ctaIndex = newBody.lastIndexOf('<section class="ppw-section ppw-center">')
+            const ctaIndex = newBody.lastIndexOf('<section class="nn-section nn-center">')
             if (ctaIndex !== -1) {
               newBody = newBody.slice(0, ctaIndex) + '\n' + data.html + '\n' + newBody.slice(ctaIndex)
             } else {
@@ -327,7 +327,7 @@ export function ArticleWorkshopView() {
           break
         case 'intro': {
           let newBody = currentBody || ''
-          const introRegex = /<section\s+class="ppw-section ppw-muted">[\s\S]*?<\/section>/i
+          const introRegex = /<section\s+class="nn-section nn-muted">[\s\S]*?<\/section>/i
           if (introRegex.test(newBody)) {
             newBody = newBody.replace(introRegex, data.html)
           }
@@ -355,9 +355,9 @@ export function ArticleWorkshopView() {
           let prodBody = currentBody || ''
           if (data.html) {
             // Remove existing product cards first
-            prodBody = prodBody.replace(/<div class="ppw-featured-products">[\s\S]*?<\/div>\s*<\/div>/gi, '')
+            prodBody = prodBody.replace(/<div class="nn-featured-products">[\s\S]*?<\/div>\s*<\/div>/gi, '')
             // Insert before CTA section, or append
-            const ctaIdx = prodBody.lastIndexOf('<section class="ppw-section ppw-center">')
+            const ctaIdx = prodBody.lastIndexOf('<section class="nn-section nn-center">')
             if (ctaIdx !== -1) {
               prodBody = prodBody.slice(0, ctaIdx) + '\n' + data.html + '\n' + prodBody.slice(ctaIdx)
             } else {
@@ -499,7 +499,7 @@ export function ArticleWorkshopView() {
       if (concepts.length === 0) throw new Error('No content image concepts generated')
 
       // Step 2: Remove existing content images from body
-      currentBody = currentBody.replace(/<figure class="ppw-content-image">[\s\S]*?<\/figure>/gi, '')
+      currentBody = currentBody.replace(/<figure class="nn-content-image">[\s\S]*?<\/figure>/gi, '')
 
       // Step 3: Track which sections already have an image
       const sectionsWithImages = new Set<string>()
@@ -534,7 +534,7 @@ export function ArticleWorkshopView() {
             : imgData.imageUrl
 
           const altText = (concept.altText || concept.label || 'Article illustration').replace(/"/g, '&quot;')
-          const figureTag = `\n<figure class="ppw-content-image"><img src="${cleanUrl}" alt="${altText}" loading="lazy" /></figure>\n`
+          const figureTag = `\n<figure class="nn-content-image"><img src="${cleanUrl}" alt="${altText}" loading="lazy" /></figure>\n`
 
           // Insert after the target section H2
           const targetId = concept.targetSectionId
@@ -830,7 +830,7 @@ export function ArticleWorkshopView() {
                     </Button>
                   </div>
                   <p className="mt-2 text-[12px]" style={{ color: 'var(--text3)' }}>
-                    Tip: Paste a full URL like nakednutrition.com/blogs/wellness/article-handle to load directly
+                    Tip: Paste a full URL like nakednutrition.com/blogs/news/article-handle to load directly
                   </p>
                 </CardContent>
               </Card>
@@ -1115,8 +1115,8 @@ export function ArticleWorkshopView() {
                 <SectionCard
                   icon={<Link2 className="h-4 w-4" />}
                   title="Internal Links"
-                  status={/href="\/blogs\/wellness\//i.test(pendingChanges.body_html || loadedArticle.body_html || '') ? 'present' : 'missing'}
-                  detail={`${((pendingChanges.body_html || loadedArticle.body_html || '').match(/href="\/blogs\/wellness\//gi) || []).length} internal links`}
+                  status={/href="\/blogs\/news\//i.test(pendingChanges.body_html || loadedArticle.body_html || '') ? 'present' : 'missing'}
+                  detail={`${((pendingChanges.body_html || loadedArticle.body_html || '').match(/href="\/blogs\/news\//gi) || []).length} internal links`}
                 >
                   <Button
                     size="sm"
@@ -1134,8 +1134,8 @@ export function ArticleWorkshopView() {
                 <SectionCard
                   icon={<ShoppingBag className="h-4 w-4" />}
                   title="Featured Products"
-                  status={/ppw-card|ppw-product/i.test(pendingChanges.body_html || loadedArticle.body_html || '') ? 'present' : 'missing'}
-                  detail={/ppw-card|ppw-product/i.test(pendingChanges.body_html || loadedArticle.body_html || '') ? 'Product cards found' : 'No product cards'}
+                  status={/nn-card|nn-product/i.test(pendingChanges.body_html || loadedArticle.body_html || '') ? 'present' : 'missing'}
+                  detail={/nn-card|nn-product/i.test(pendingChanges.body_html || loadedArticle.body_html || '') ? 'Product cards found' : 'No product cards'}
                 >
                   <Button
                     size="sm"
@@ -1153,7 +1153,7 @@ export function ArticleWorkshopView() {
                 <SectionCard
                   icon={<HelpCircle className="h-4 w-4" />}
                   title="FAQ Section"
-                  status={/<details|ppw-faq/i.test(pendingChanges.body_html || loadedArticle.body_html || '') ? 'present' : 'missing'}
+                  status={/<details|nn-faq/i.test(pendingChanges.body_html || loadedArticle.body_html || '') ? 'present' : 'missing'}
                   detail={`${((pendingChanges.body_html || loadedArticle.body_html || '').match(/<details/gi) || []).length} questions found`}
                 >
                   <Button

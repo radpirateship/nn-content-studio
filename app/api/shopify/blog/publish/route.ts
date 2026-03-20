@@ -88,6 +88,7 @@ export async function POST(request: NextRequest) {
 
     // If no blogId provided, resolve the right NN blog based on article category
     let targetBlogId = blogId;
+    let resolvedBlogHandle = 'news'; // default blog handle for URL building
     if (!targetBlogId) {
       const blogsData = await shopifyAdminFetch("blogs.json");
       const blogs: { id: number; handle: string }[] = blogsData.blogs || [];
@@ -120,6 +121,7 @@ export async function POST(request: NextRequest) {
       const preferredBlog = blogs.find((b) => b.handle === preferredHandle)
       const fallback = blogs.find((b) => b.handle === 'news') || blogs[0]
       targetBlogId = preferredBlog?.id || fallback?.id
+      resolvedBlogHandle = preferredBlog ? preferredHandle : (fallback?.handle || 'news')
 
       if (!targetBlogId) {
         return NextResponse.json(
@@ -211,7 +213,7 @@ export async function POST(request: NextRequest) {
         { status: 502 }
       );
     }
-    const articleUrl = `https://nakednutrition.com/blogs/wellness/${createdArticle.handle}`;
+    const articleUrl = `https://nakednutrition.com/blogs/${resolvedBlogHandle}/${createdArticle.handle}`;
 
     // Ping search engines to re-crawl the sitemap
     const sitemapUrl = "https://nakednutrition.com/sitemap.xml";
@@ -248,6 +250,7 @@ export async function POST(request: NextRequest) {
         created_at: createdArticle.created_at,
       },
       blogId: targetBlogId,
+      blogHandle: resolvedBlogHandle,
       sitemapPing: pingResults,
     });
   } catch (error) {

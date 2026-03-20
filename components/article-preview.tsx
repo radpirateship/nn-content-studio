@@ -35,6 +35,7 @@ import {
   } from 'lucide-react'
 import type { GeneratedArticle } from '@/lib/types'
 import { CATEGORY_LABELS } from '@/lib/types'
+import { buildShopifyTags } from '@/lib/tagMapping'
 
  interface ArticlePreviewProps {
   article: GeneratedArticle
@@ -63,7 +64,7 @@ import { CATEGORY_LABELS } from '@/lib/types'
     setPublishResult(null)
 
     try {
-      const tags = article.category || article.shopifyBlogTag || ''
+      const tags = buildShopifyTags(article.category, article.articleType)
 
       const response = await fetch('/api/shopify/blog/publish', {
         method: 'POST',
@@ -73,6 +74,7 @@ import { CATEGORY_LABELS } from '@/lib/types'
           bodyHtml: article.htmlContent,
           summary: article.metaDescription || '',
           tags,
+          category: article.category,
           author: 'Naked Nutrition',
           handle: article.slug,
           published: true,

@@ -86,10 +86,10 @@ async function regenerateFaq(
   const systemPrompt = `You are a Senior Content Editor at Naked Nutrition. Generate ONLY an FAQ section for an article. Output ONLY the HTML below â no explanation, no markdown, no wrapping tags.
 
 FORMAT (use this EXACT structure):
-<section id="faq" class="ppw-section">
+<section id="faq" class="nn-section">
 <h2>Frequently Asked Questions</h2>
-<div class="ppw-faq-list">
-<details class="ppw-faq-item"><summary class="ppw-faq-question">Question?</summary><div class="ppw-faq-answer"><p>Answer paragraph.</p></div></details>
+<div class="nn-faq-list">
+<details class="nn-faq-item"><summary class="nn-faq-question">Question?</summary><div class="nn-faq-answer"><p>Answer paragraph.</p></div></details>
 </div>
 </section>
 
@@ -143,7 +143,7 @@ async function regenerateIntro(
   const systemPrompt = `You are a Senior Content Editor at Naked Nutrition. Rewrite ONLY the Key Takeaways section for an existing article. Output the exact HTML structure â no explanation, no markdown.
 
 FORMAT:
-<section class="ppw-section ppw-muted">
+<section class="nn-section nn-muted">
 <h2>Key Takeaways</h2>
 <ul><li><strong>Label:</strong> description</li>...</ul>
 </section>
@@ -176,7 +176,7 @@ async function regenerateConclusion(
   const systemPrompt = `You are a Senior Content Editor at Naked Nutrition. Write a conclusion section for an existing article. Output ONLY the HTML â no explanation, no markdown.
 
 FORMAT:
-<section id="final-thoughts" class="ppw-section">
+<section id="final-thoughts" class="nn-section">
 <h2>Final Thoughts</h2>
 <p>...</p>
 <p>...</p>
@@ -313,10 +313,10 @@ async function regenerateProducts(
     // Build product card HTML matching the main generate route
     const displayProducts = products.slice(0, 4);
     const cards = displayProducts.map((p: { title: string; description?: string; price?: string; imageUrl?: string; url?: string; handle?: string; vendor?: string; tags?: string }, i: number) => buildProductCard(p, i, displayProducts)).join("\n");
-    const productsHtml = `<section id="featured-products" class="ppw-section">
-<h2 class="ppw-center">Top ${categoryLabel} Picks</h2>
-<p style="margin-bottom:3rem;color:#666;font-size:1.6rem;" class="ppw-center">Premium quality with white-glove delivery included, pre-delivery inspection, and expert support.</p>
-<div class="ppw-grid cols-2">
+    const productsHtml = `<section id="featured-products" class="nn-section">
+<h2 class="nn-center">Top ${categoryLabel} Picks</h2>
+<p style="margin-bottom:3rem;color:#666;font-size:1.6rem;" class="nn-center">Premium quality with white-glove delivery included, pre-delivery inspection, and expert support.</p>
+<div class="nn-grid cols-2">
 ${cards}
 </div>
 </section>`;
@@ -501,7 +501,7 @@ function buildProductCard(product: {
   const features = extractFeatures(product);
 
   const imageHtml = product.imageUrl
-    ? `<div class="ppw-product-image-container"><img src="${product.imageUrl}" alt="${product.title}" class="ppw-product-image" loading="lazy" /></div>`
+    ? `<div class="nn-product-image-container"><img src="${product.imageUrl}" alt="${product.title}" class="nn-product-image" loading="lazy" /></div>`
     : "";
 
   let priceHtml = "";
@@ -521,15 +521,15 @@ function buildProductCard(product: {
       : `<li>\u2705 ${f}</li>`
   ).join("\n");
 
-  return `<div class="ppw-product-card" style="border-color:${badge.color};">
-<span class="ppw-badge" style="background:${badge.color};align-self:flex-start;margin-bottom:1rem;">${badge.label}</span>
+  return `<div class="nn-product-card" style="border-color:${badge.color};">
+<span class="nn-badge" style="background:${badge.color};align-self:flex-start;margin-bottom:1rem;">${badge.label}</span>
 ${imageHtml}
 <h3>${product.title}</h3>
 ${priceHtml}
 <ul>
 ${featureBullets}
 </ul>
-<div style="margin-top:auto;"><a class="ppw-cta" href="${productUrl}">View ${shortName}</a></div>
+<div style="margin-top:auto;"><a class="nn-cta" href="${productUrl}">View ${shortName}</a></div>
 </div>`;
 }
 function detectCategory(tags: string): string {

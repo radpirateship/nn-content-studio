@@ -68,6 +68,7 @@ export async function PUT(request: NextRequest) {
     }
 
     let targetBlogId = blogId;
+    let resolvedBlogHandle = 'news';
     if (!targetBlogId) {
       const blogsData = await shopifyAdminFetch("blogs.json");
       const blogs = blogsData.blogs || [];
@@ -78,6 +79,7 @@ export async function PUT(request: NextRequest) {
           b.handle === "protein"
       );
       targetBlogId = blog?.id || blogs[0]?.id;
+      resolvedBlogHandle = blog?.handle || blogs[0]?.handle || 'news';
 
       if (!targetBlogId) {
         return NextResponse.json(
@@ -185,7 +187,7 @@ export async function PUT(request: NextRequest) {
         id: updatedArticle.id,
         title: updatedArticle.title,
         handle: updatedArticle.handle,
-        url: `https://nakednutrition.com/blogs/wellness/${updatedArticle.handle}`,
+        url: `https://nakednutrition.com/blogs/${resolvedBlogHandle}/${updatedArticle.handle}`,
         updated_at: updatedArticle.updated_at,
       },
       blogId: targetBlogId,

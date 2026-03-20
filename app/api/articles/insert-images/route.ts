@@ -34,8 +34,8 @@ export async function POST(request: NextRequest) {
 
     // Step 2: Strip any images that leaked inside product card blocks
     enrichedHTML = enrichedHTML.replace(
-      /(<div[^>]*class="[^"]*ppw-product-card[^"]*"[^>]*>)([\s\S]*?)(<\/div>\s*<\/div>\s*<\/div>)/gi,
-      (match: string) => match.replace(/<figure[^>]*class="ppw-content-image"[^>]*>[\s\S]*?<\/figure>/gi, '')
+      /(<div[^>]*class="[^"]*nn-product-card[^"]*"[^>]*>)([\s\S]*?)(<\/div>\s*<\/div>\s*<\/div>)/gi,
+      (match: string) => match.replace(/<figure[^>]*class="nn-content-image"[^>]*>[\s\S]*?<\/figure>/gi, '')
     );
 
     // Step 3: Insert images by targetSectionId or label-based matching (max 1 per section)
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       }
 
       const altText = (img.altText || img.label || 'Article illustration').replace(/"/g, '&quot;');
-      const figureTag = `\n<figure class="ppw-content-image"><img src="${cleanUrl}" alt="${altText}" loading="lazy" /></figure>\n`;
+      const figureTag = `\n<figure class="nn-content-image"><img src="${cleanUrl}" alt="${altText}" loading="lazy" /></figure>\n`;
 
       let inserted = false;
 
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
           const insertPos = sectionMatch.index + sectionMatch[0].length;
           // Guard: don't insert inside product cards
           const before = enrichedHTML.slice(Math.max(0, insertPos - 500), insertPos);
-          if (!before.includes('ppw-product-card') && !before.includes('featured-products')) {
+          if (!before.includes('nn-product-card') && !before.includes('featured-products')) {
             enrichedHTML = enrichedHTML.slice(0, insertPos) + figureTag + enrichedHTML.slice(insertPos);
             sectionsWithImages.add(img.targetSectionId);
             insertedCount++;
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
 
         while ((match = headingRegex.exec(enrichedHTML)) !== null) {
           const before = enrichedHTML.slice(Math.max(0, match.index - 300), match.index);
-          if (before.includes('ppw-product-card') || before.includes('featured-products')) continue;
+          if (before.includes('nn-product-card') || before.includes('featured-products')) continue;
 
           const headingText = match[2].replace(/<[^>]*>/g, '').toLowerCase();
           const score = labelWords.filter((w: string) => headingText.includes(w)).length;

@@ -128,7 +128,7 @@ async function uploadBufferToShopify(
   label: string
 ): Promise<string> {
   const ext = mimeType.includes("png") ? "png" : "jpg";
-  const fileName = `ppw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const fileName = `nn-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
   console.log(
     `[shopify-upload] ${label}: ${Math.round(imageBuffer.byteLength / 1024)}KB, ` +

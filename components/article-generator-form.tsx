@@ -317,7 +317,7 @@ export function ArticleGeneratorForm({ onSubmit, onBulkSubmit, isGenerating, ini
                 <Label htmlFor="shopifySlug">URL / Slug</Label>
                 <div className="flex items-center gap-0">
                   <span className="inline-flex h-9 shrink-0 items-center rounded-l-md border border-r-0 border-input bg-muted px-2.5 text-xs text-muted-foreground">
-                    /blogs/wellness/
+                    /blogs/news/
                   </span>
                   <Input
                     id="shopifySlug"

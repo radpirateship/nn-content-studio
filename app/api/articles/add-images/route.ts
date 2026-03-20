@@ -140,9 +140,9 @@ export async function POST(request: NextRequest) {
 
     // Strip any images inside product card blocks (safety)
     enrichedHTML = enrichedHTML.replace(
-      /(<div[^>]*class="[^"]*ppw-product-card[^"]*"[^>]*>)([\s\S]*?)(<\/div>\s*<\/div>\s*<\/div>)/gi,
+      /(<div[^>]*class="[^"]*nn-product-card[^"]*"[^>]*>)([\s\S]*?)(<\/div>\s*<\/div>\s*<\/div>)/gi,
       (match: string) =>
-        match.replace(/<figure[^>]*class="ppw-content-image"[^>]*>[\s\S]*?<\/figure>/gi, "")
+        match.replace(/<figure[^>]*class="nn-content-image"[^>]*>[\s\S]*?<\/figure>/gi, "")
     );
 
     const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -258,7 +258,7 @@ export async function POST(request: NextRequest) {
       if (!cleanUrl) continue;
 
       const altText = (img.altText || img.heading).replace(/"/g, "&quot;");
-      const figureTag = `\n<figure class="ppw-content-image"><img src="${cleanUrl}" alt="${altText}" loading="lazy" /></figure>\n`;
+      const figureTag = `\n<figure class="nn-content-image"><img src="${cleanUrl}" alt="${altText}" loading="lazy" /></figure>\n`;
 
       const escapedId = img.sectionId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const sectionRegex = new RegExp(
@@ -270,7 +270,7 @@ export async function POST(request: NextRequest) {
       if (sectionMatch) {
         const insertPos = sectionMatch.index + sectionMatch[0].length;
         const before = enrichedHTML.slice(Math.max(0, insertPos - 500), insertPos);
-        if (!before.includes("ppw-product-card") && !before.includes("featured-products")) {
+        if (!before.includes("nn-product-card") && !before.includes("featured-products")) {
           enrichedHTML =
             enrichedHTML.slice(0, insertPos) + figureTag + enrichedHTML.slice(insertPos);
           insertedCount++;

@@ -435,7 +435,7 @@ export function GuideContentGenerator({ guide, onSave, onBack }: GuideContentGen
           const links: ClusterLink[] = resources
             .filter((r: Record<string, unknown>) => r.slug || r.url || r.existingUrl)
             .map((r: Record<string, unknown>) => {
-              // Extract slug from existingUrl if no slug field: "/blogs/wellness/my-article" -> "my-article"
+              // Extract slug from existingUrl if no slug field: "/blogs/news/my-article" -> "my-article"
               const existingUrl = (r.existingUrl as string) || (r.url as string) || ''
               const slugFromUrl = existingUrl.replace(/^.*\/blogs\/wellness\//, '').replace(/^\//, '')
               return {
@@ -929,7 +929,7 @@ export function GuideContentGenerator({ guide, onSave, onBack }: GuideContentGen
 
       // Convert loaded cluster links to guide's DB format so downstream steps have them
       const clusterLinksForGuide = clusterLinks.map(l => ({
-        url: l.url || (l.slug ? `/blogs/wellness/${l.slug}` : ''),
+        url: l.url || (l.slug ? `/blogs/news/${l.slug}` : ''),
         anchor: l.title || l.anchor || '',
       }))
 

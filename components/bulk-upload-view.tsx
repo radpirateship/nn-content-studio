@@ -181,7 +181,7 @@ export function BulkUploadView({
     const normalizedCollection = Object.keys(COLLECTION_TO_CATEGORY).find(
       k => k.toLowerCase() === item.collection.toLowerCase()
     ) || item.collection
-    const category = COLLECTION_TO_CATEGORY[normalizedCollection] || 'general-wellness'
+    const category = COLLECTION_TO_CATEGORY[normalizedCollection] || 'general-nutrition'
 
     // Update status
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'running', step: 'Generating outline...' } : i))

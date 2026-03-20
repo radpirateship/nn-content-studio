@@ -170,8 +170,8 @@ export async function GET(request: NextRequest) {
         has_image: !!a.image?.src,
         has_content_images: /<img/i.test(body),
         has_internal_links: /href="\/blogs\/wellness\//i.test(body),
-        has_products: /ppw-card|ppw-product/i.test(body),
-        has_faq: /<details|ppw-faq/i.test(body),
+        has_products: /nn-card|nn-product/i.test(body),
+        has_faq: /<details|nn-faq/i.test(body),
       };
     });
 

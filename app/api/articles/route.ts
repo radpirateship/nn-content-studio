@@ -51,6 +51,8 @@ export async function POST(request: NextRequest) {
       word_count,
       status = "draft",
       tone,
+      article_type,
+      shopify_blog_tag,
     } = body;
 
     // Check if slug exists and make it unique if needed
@@ -66,11 +68,13 @@ export async function POST(request: NextRequest) {
     const articles = await sql`
       INSERT INTO articles (
         title, slug, category, keyword, html_content, meta_description,
-        schema_markup, featured_image_url, word_count, status, tone
+        schema_markup, featured_image_url, word_count, status, tone,
+        article_type, shopify_blog_tag
       ) VALUES (
         ${title}, ${uniqueSlug}, ${category || null}, ${keyword || null}, ${html_content}, ${meta_description || null},
         ${schema_markup || null}, ${featured_image_url || null},
-        ${word_count || 0}, ${status}, ${tone || null}
+        ${word_count || 0}, ${status}, ${tone || null},
+        ${article_type || null}, ${shopify_blog_tag || null}
       )
       RETURNING *
     `;
@@ -122,6 +126,8 @@ export async function PUT(request: NextRequest) {
         word_count = COALESCE(${updates.word_count ?? null}, word_count),
         status = COALESCE(${updates.status ?? null}, status),
         tone = COALESCE(${updates.tone ?? null}, tone),
+        article_type = COALESCE(${updates.article_type ?? null}, article_type),
+        shopify_blog_tag = COALESCE(${updates.shopify_blog_tag ?? null}, shopify_blog_tag),
         updated_at = NOW()
       WHERE id = ${id}
       RETURNING *

@@ -163,19 +163,37 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
     }
   }
 
-  const revampBlogPost = (post: BlogPost) => {
-    // Shopify API access not available yet — set up paste tab with
-    // the article URL and pre-fill category/keyword so the user can
-    // copy-paste the HTML from Shopify admin manually
-    setArticleContent('')
+  const [isFetchingBlogPost, setIsFetchingBlogPost] = useState(false)
+
+  const revampBlogPost = async (post: BlogPost) => {
     setCategory(post.category)
     setKeyword(post.slug.replace(/-/g, ' '))
+    setIsFetchingBlogPost(true)
+
+    try {
+      // Try to fetch the article HTML directly from Shopify by slug/handle
+      const response = await fetch(`/api/shopify/blog/fetch?handle=${encodeURIComponent(post.slug)}`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.body_html) {
+          setArticleContent(data.body_html)
+          setActiveTab('paste')
+          return
+        }
+      }
+    } catch (error) {
+      console.error('Failed to auto-fetch blog post from Shopify:', error)
+    } finally {
+      setIsFetchingBlogPost(false)
+    }
+
+    // Fallback: switch to paste tab with instructions if auto-fetch failed
+    setArticleContent('')
     setActiveTab('paste')
-    // Small delay so the tab switch renders, then focus the textarea
     setTimeout(() => {
       const textarea = document.querySelector<HTMLTextAreaElement>('textarea[placeholder*="Paste"]')
       if (textarea) {
-        textarea.placeholder = `Paste the HTML for: ${post.url}\n\nOpen this URL in Shopify Admin → Blog posts → find this article → copy the HTML`
+        textarea.placeholder = `Could not auto-fetch: ${post.url}\n\nPaste the HTML manually from Shopify Admin → Blog posts → find this article → copy the HTML`
         textarea.focus()
       }
     }, 100)
@@ -378,10 +396,11 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
                           </div>
                           <button
                             onClick={() => revampBlogPost(post)}
+                            disabled={isFetchingBlogPost}
                             className="px-2.5 py-1 rounded text-[11px] font-medium text-white transition-all flex-shrink-0"
-                            style={{ background: 'var(--nn-accent)' }}
+                            style={{ background: 'var(--nn-accent)', opacity: isFetchingBlogPost ? 0.7 : 1 }}
                           >
-                            Revamp This
+                            {isFetchingBlogPost ? 'Loading...' : 'Revamp This'}
                           </button>
                         </div>
 
