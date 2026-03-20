@@ -142,6 +142,11 @@ export async function GET() {
     results['articles.article_type'] = 'OK'
   } catch (e) { results['articles.article_type'] = `ERROR: ${e}` }
 
+  try {
+    await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS image_storyboard JSONB`
+    results['articles.image_storyboard'] = 'OK'
+  } catch (e) { results['articles.image_storyboard'] = `ERROR: ${e}` }
+
   // --- Activity log table ---
   try {
     await sql`

@@ -131,9 +131,10 @@ export default function ContentStudio() {
           html_content: article.htmlContent,
           meta_description: article.metaDescription,
           schema_markup: article.schemaMarkup,
-          featured_image_url: article.featuredImage?.url,
-          word_count: article.wordCount,
-          status: 'draft',
+        featured_image_url: article.featuredImage?.url,
+        image_storyboard: article.imageStoryboard ?? null,
+        word_count: article.wordCount,
+        status: 'draft',
           article_type: article.articleType || null,
           shopify_blog_tag: article.shopifyBlogTag || null,
         }),
@@ -152,16 +153,21 @@ export default function ContentStudio() {
   const updateArticleInDb = async (article: GeneratedArticle) => {
     if (!article.dbId) return
     try {
+      const payload: Record<string, unknown> = {
+        id: article.dbId,
+        html_content: article.htmlContent,
+        meta_description: article.metaDescription,
+        schema_markup: article.schemaMarkup,
+        word_count: article.wordCount,
+      }
+
+      if (article.featuredImage?.url) payload.featured_image_url = article.featuredImage.url
+      if (article.imageStoryboard !== undefined) payload.image_storyboard = article.imageStoryboard
+
       await fetch('/api/articles', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: article.dbId,
-          html_content: article.htmlContent,
-          meta_description: article.metaDescription,
-          schema_markup: article.schemaMarkup,
-          word_count: article.wordCount,
-        }),
+        body: JSON.stringify(payload),
       })
     } catch (error) {
       console.error('[updateArticleInDb] Failed to update article:', error)
@@ -436,6 +442,7 @@ export default function ContentStudio() {
         shopifyBlogTag: input.shopifyBlogTag,
         articleType: input.articleType,
         hasInternalLinks: false, hasImages: false, linkCount: 0, imageCount: 0,
+        imageStoryboard: null,
       }
       article.schemaMarkup = generateSchemaMarkup(article)
       updateProgress('ready-for-review', 100, 'Article ready! Use sidebar to add links and images.')
@@ -604,6 +611,7 @@ export default function ContentStudio() {
             featuredImage: fullArticle.featured_image_url
               ? { id: `feat-${article.id}`, prompt: '', url: fullArticle.featured_image_url, altText: fullArticle.featured_image_alt || article.title, placement: 'featured' as const }
               : undefined,
+            imageStoryboard: fullArticle.image_storyboard || null,
           }
           setCurrentArticle(loaded)
           await loadInternalLinksForArticle(loaded)

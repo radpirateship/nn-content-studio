@@ -75,6 +75,7 @@ export interface GeneratedArticle {
   shopifyBlogTag?: string
   sourceType?: 'new' | 'revamp'
   originalShopifyId?: number
+  imageStoryboard?: ImageStoryboardDraft | null
 }
 
 export type ArticleStatus = 'draft' | 'reviewing' | 'approved' | 'published' | 'failed'
@@ -171,7 +172,20 @@ export interface ImageConcept {
   status: 'draft' | 'generating' | 'generated' | 'error'
   placeholderKey?: string // legacy - maps to [IMAGE_PLACEHOLDER_N]
   targetSectionId?: string // H2 id to inject image after
+  targetSectionHeading?: string // Human-readable heading for placement copy
   type?: 'featured' | 'technical' // featured = cinematic featured image, technical = diagram/infographic
+}
+
+export interface ImageStoryboardDraft {
+  version: 1
+  concepts: ImageConcept[]
+  insertedAt?: string
+  insertedCount?: number
+  featuredImage?: {
+    url: string
+    altText: string
+  }
+  updatedAt: string
 }
 
 // Wizard step tracking

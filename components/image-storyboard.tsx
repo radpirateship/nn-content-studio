@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -8,15 +8,14 @@ import { Badge } from '@/components/ui/badge'
 import {
   ImageIcon,
   Loader2,
-  Pencil,
   ChevronLeft,
   Sparkles,
   AlertCircle,
   CheckCircle2,
   Download,
+  Info,
 } from 'lucide-react'
-import type { ImageConcept, GeneratedArticle } from '@/lib/types'
-import type { ImageModel } from '@/lib/imageGeneration'
+import type { ImageConcept, GeneratedArticle, ImageStoryboardDraft } from '@/lib/types'
 import { extractImageUrl } from '@/lib/imageUtils'
 
 interface ImageStoryboardProps {
@@ -26,18 +25,52 @@ interface ImageStoryboardProps {
   onSkip: () => void
 }
 
+function extractSectionHeadings(html: string): Map<string, string> {
+  const headings = new Map<string, string>()
+  const h2Regex = /<h2[^>]*(?:id="([^"]*)")?[^>]*>(.*?)<\/h2>/gi
+  let match: RegExpExecArray | null
+
+  while ((match = h2Regex.exec(html)) !== null) {
+    const text = match[2].replace(/<[^>]+>/g, '').trim()
+    const id = match[1] || text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    if (id && text) headings.set(id, text)
+  }
+
+  return headings
+}
+
+function enrichConcepts(concepts: ImageConcept[], html: string): ImageConcept[] {
+  const headings = extractSectionHeadings(html)
+  return concepts.map((concept) => ({
+    ...concept,
+    targetSectionHeading: concept.targetSectionHeading || (concept.targetSectionId ? headings.get(concept.targetSectionId) : undefined),
+  }))
+}
+
 export function ImageStoryboard({
   article,
   onInsertImages,
   onBack,
   onSkip,
 }: ImageStoryboardProps) {
-  const [concepts, setConcepts] = useState<ImageConcept[]>([])
+  const initialStoryboard = article.imageStoryboard || null
+  const initialConcepts = initialStoryboard?.concepts ? enrichConcepts(initialStoryboard.concepts, article.htmlContent || '') : []
+  const [concepts, setConcepts] = useState<ImageConcept[]>(initialConcepts)
   const [isDrafting, setIsDrafting] = useState(false)
   const [isInserting, setIsInserting] = useState(false)
   const [draftError, setDraftError] = useState<string | null>(null)
-  const [insertedCount, setInsertedCount] = useState<number | null>(null)
+  const [insertedCount, setInsertedCount] = useState<number | null>(initialStoryboard?.insertedCount ?? null)
   const [latestHtmlContent, setLatestHtmlContent] = useState<string>(article.htmlContent || '')
+  const [featuredImageState, setFeaturedImageState] = useState<{ url: string; altText: string } | undefined>(initialStoryboard?.featuredImage)
+  const [persistenceWarning, setPersistenceWarning] = useState<string | null>(null)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingConceptsRef = useRef<ImageConcept[] | null>(null)
+  const pendingMetaRef = useRef<Partial<ImageStoryboardDraft> | undefined>(undefined)
+  const latestMetaRef = useRef<Pick<ImageStoryboardDraft, 'insertedAt' | 'insertedCount' | 'featuredImage'>>({
+    insertedAt: initialStoryboard?.insertedAt,
+    insertedCount: initialStoryboard?.insertedCount,
+    featuredImage: initialStoryboard?.featuredImage,
+  })
 
   // Keep latestHtmlContent in sync when the article prop updates (e.g. after link application)
   useEffect(() => {
@@ -61,19 +94,103 @@ export function ImageStoryboard({
           console.log('[image-storyboard] Loaded fresher HTML from DB (has links)')
           setLatestHtmlContent(data.html_content)
         }
+        if (!cancelled && data?.image_storyboard?.concepts?.length) {
+          const restored = enrichConcepts(data.image_storyboard.concepts, data.html_content || article.htmlContent || '')
+          setConcepts(restored)
+          setInsertedCount(data.image_storyboard.insertedCount ?? null)
+          setFeaturedImageState(data.image_storyboard.featuredImage)
+          latestMetaRef.current = {
+            insertedAt: data.image_storyboard.insertedAt,
+            insertedCount: data.image_storyboard.insertedCount,
+            featuredImage: data.image_storyboard.featuredImage,
+          }
+        }
       })
       .catch((err) => {
         console.warn('[image-storyboard] Could not refresh HTML from DB:', err.message)
       })
     return () => { cancelled = true }
-  }, [article.dbId])
+  }, [article.dbId, article.htmlContent])
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current)
+        if (pendingConceptsRef.current) {
+          void persistStoryboard(pendingConceptsRef.current, pendingMetaRef.current)
+        }
+      }
+    }
+  }, [])
 
   const generatedConcepts = concepts.filter(c => c.status === 'generated')
 
+  const persistStoryboard = async (
+    nextConcepts: ImageConcept[],
+    meta?: Partial<ImageStoryboardDraft>,
+  ) => {
+    if (!article.dbId) return
+
+    const nextStoryboard: ImageStoryboardDraft = {
+      version: 1,
+      concepts: nextConcepts,
+      insertedAt: meta?.insertedAt ?? latestMetaRef.current.insertedAt,
+      insertedCount: meta?.insertedCount ?? latestMetaRef.current.insertedCount,
+      featuredImage: meta?.featuredImage ?? latestMetaRef.current.featuredImage,
+      updatedAt: new Date().toISOString(),
+    }
+
+    latestMetaRef.current = {
+      insertedAt: nextStoryboard.insertedAt,
+      insertedCount: nextStoryboard.insertedCount,
+      featuredImage: nextStoryboard.featuredImage,
+    }
+
+    try {
+      const response = await fetch('/api/articles', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: article.dbId,
+          image_storyboard: nextStoryboard,
+          featured_image_url: nextStoryboard.featuredImage?.url,
+        }),
+      })
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      setPersistenceWarning(null)
+    } catch (error) {
+      console.error('[image-storyboard] Failed to persist storyboard:', error)
+      setPersistenceWarning('Storyboard changes may not persist if you leave this page.')
+    }
+  }
+
+  const schedulePersist = (nextConcepts: ImageConcept[], meta?: Partial<ImageStoryboardDraft>) => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    pendingConceptsRef.current = nextConcepts
+    pendingMetaRef.current = meta
+    saveTimerRef.current = setTimeout(() => {
+      pendingConceptsRef.current = null
+      pendingMetaRef.current = undefined
+      void persistStoryboard(nextConcepts, meta)
+    }, 500)
+  }
+
   const handleDraftConcepts = async () => {
+    if (concepts.length > 0 && !window.confirm('Re-draft concepts? This will replace your current prompts and generated storyboard state.')) {
+      return
+    }
+
     setIsDrafting(true)
     setDraftError(null)
     setConcepts([])
+    setInsertedCount(null)
+    setFeaturedImageState(undefined)
+    latestMetaRef.current = {
+      insertedAt: undefined,
+      insertedCount: undefined,
+      featuredImage: undefined,
+    }
 
     try {
       const response = await fetch('/api/articles/draft-image-prompts', {
@@ -90,7 +207,13 @@ export function ImageStoryboard({
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to draft concepts')
 
-      setConcepts(data.concepts || [])
+      const nextConcepts = enrichConcepts(data.concepts || [], latestHtmlContent || article.htmlContent || '')
+      setConcepts(nextConcepts)
+      await persistStoryboard(nextConcepts, {
+        insertedAt: undefined,
+        insertedCount: undefined,
+        featuredImage: undefined,
+      })
     } catch (error) {
       setDraftError(error instanceof Error ? error.message : 'Failed to draft concepts')
     } finally {
@@ -122,18 +245,18 @@ export function ImageStoryboard({
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to generate')
 
-      setConcepts(prev =>
-        prev.map(c =>
-          c.id === conceptId
-            ? { ...c, imageUrl: data.imageUrl, status: 'generated' as const }
-            : c
-        )
+      const nextConcepts = concepts.map(c =>
+        c.id === conceptId
+          ? { ...c, imageUrl: data.imageUrl, status: 'generated' as const }
+          : c
       )
+      setConcepts(nextConcepts)
+      await persistStoryboard(nextConcepts)
     } catch (error) {
       console.error('Generate image failed:', error)
-      setConcepts(prev =>
-        prev.map(c => (c.id === conceptId ? { ...c, status: 'error' as const } : c))
-      )
+      const nextConcepts = concepts.map(c => (c.id === conceptId ? { ...c, status: 'error' as const } : c))
+      setConcepts(nextConcepts)
+      await persistStoryboard(nextConcepts)
     }
   }
 
@@ -150,9 +273,9 @@ export function ImageStoryboard({
   }
 
   const handleEditPrompt = (conceptId: string, newPrompt: string) => {
-    setConcepts(prev =>
-      prev.map(c => (c.id === conceptId ? { ...c, editedPrompt: newPrompt } : c))
-    )
+    const nextConcepts = concepts.map(c => (c.id === conceptId ? { ...c, editedPrompt: newPrompt } : c))
+    setConcepts(nextConcepts)
+    schedulePersist(nextConcepts)
   }
 
   const handleInsertAll = async () => {
@@ -312,7 +435,14 @@ export function ImageStoryboard({
         ? { url: shopifyFeaturedUrl, altText: shopifyFeaturedAlt }
         : undefined
 
+      const insertedAt = new Date().toISOString()
+      setFeaturedImageState(featuredImage)
       setInsertedCount(count)
+      await persistStoryboard(concepts, {
+        insertedAt,
+        insertedCount: count,
+        featuredImage,
+      })
       onInsertImages(enrichedHTML, count, featuredImage)
     } catch (error) {
       console.error('Failed to insert images:', error)
@@ -337,7 +467,7 @@ export function ImageStoryboard({
               <div>
                 <CardTitle className="text-lg">Step 3: Visual Concepts</CardTitle>
                 <CardDescription>
-                  The Technical Illustrator drafts image prompts. Review, edit, then generate one at a time.
+                  Draft 1 featured image concept and 3 inline section image concepts, then review and generate them before inserting.
                 </CardDescription>
               </div>
             </div>
@@ -361,7 +491,7 @@ export function ImageStoryboard({
             <div className="space-y-1">
               <p className="text-sm font-medium">Phase A: Concept Drafting</p>
               <p className="text-xs text-muted-foreground">
-                AI drafts 4 image prompts: 1 cinematic featured image + 3 technical illustrations
+                AI drafts 4 image prompts: 1 featured image for the top of the article and 3 inline images tied to article sections
               </p>
             </div>
             <Button
@@ -401,12 +531,34 @@ export function ImageStoryboard({
               <span>{draftError}</span>
             </div>
           )}
+
+          {persistenceWarning && (
+            <div className="mt-3 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>{persistenceWarning}</span>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Phase B: Storyboard Cards */}
       {concepts.length > 0 && (
         <div className="space-y-4">
+          <Card className="border-border/50 bg-muted/20">
+            <CardContent className="flex flex-col gap-3 pt-6 text-sm">
+              <div className="flex items-center gap-2 font-medium">
+                <Info className="h-4 w-4 text-muted-foreground" />
+                Placement Guide
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Featured image: shown at the top of the article on publish.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Inline image: inserted after its assigned section heading when you click insert.
+              </p>
+            </CardContent>
+          </Card>
+
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               Phase B: Storyboard
@@ -476,7 +628,7 @@ export function ImageStoryboard({
                 {generatedConcepts.length} image{generatedConcepts.length > 1 ? 's' : ''} ready to insert
               </p>
               <p className="text-xs" style={{ color: 'var(--text3)' }}>
-                Images will be placed into matching sections of your article
+                Featured image is saved separately; inline images are inserted after their matching section headings
               </p>
             </div>
             <Button
@@ -510,10 +662,10 @@ export function ImageStoryboard({
               </div>
               <div>
                 <p className="text-sm font-semibold text-green-800">
-                  {insertedCount} image{insertedCount > 1 ? 's' : ''} successfully inserted into article
+                  {(featuredImageState ? '1 featured image saved and ' : '') + `${insertedCount} inline image${insertedCount === 1 ? '' : 's'} inserted into article`}
                 </p>
                 <p className="text-xs text-green-700/70">
-                  Images have been placed into matching sections of your article
+                  Featured image stays outside the body HTML; inline images have been placed into matching sections
                 </p>
               </div>
             </div>
@@ -598,11 +750,16 @@ function ConceptCard({
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    {index === 0 ? 'Featured Image' : `Figure ${index}`}
+                    {concept.type === 'featured' ? 'Featured Image' : `Figure ${index}`}
                   </span>
                   {statusBadge[concept.status]}
                 </div>
                 <h4 className="text-sm font-medium leading-tight">{concept.label}</h4>
+                <p className="text-xs text-muted-foreground">
+                  {concept.type === 'featured'
+                    ? 'Placement: Featured image at the top of the article'
+                    : `Placement: Insert after section "${concept.targetSectionHeading || concept.targetSectionId || 'Best matching section'}"`}
+                </p>
               </div>
             </div>
 

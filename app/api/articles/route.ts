@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
       tone,
       article_type,
       shopify_blog_tag,
+      image_storyboard,
     } = parsed.data;
 
     logRouteEvent("Article create request received", {
@@ -87,12 +88,12 @@ export async function POST(request: NextRequest) {
       INSERT INTO articles (
         title, slug, category, keyword, html_content, meta_description,
         schema_markup, featured_image_url, word_count, status, tone,
-        article_type, shopify_blog_tag
+        article_type, shopify_blog_tag, image_storyboard
       ) VALUES (
         ${title}, ${uniqueSlug}, ${category || null}, ${keyword || null}, ${html_content}, ${meta_description || null},
         ${schema_markup || null}, ${featured_image_url || null},
         ${word_count || 0}, ${status}, ${tone || null},
-        ${article_type || null}, ${shopify_blog_tag || null}
+        ${article_type || null}, ${shopify_blog_tag || null}, ${image_storyboard || null}
       )
       RETURNING *
     `;
@@ -166,6 +167,7 @@ export async function PUT(request: NextRequest) {
         tone = COALESCE(${updates.tone ?? null}, tone),
         article_type = COALESCE(${updates.article_type ?? null}, article_type),
         shopify_blog_tag = COALESCE(${updates.shopify_blog_tag ?? null}, shopify_blog_tag),
+        image_storyboard = COALESCE(${updates.image_storyboard ?? null}, image_storyboard),
         updated_at = NOW()
       WHERE id = ${id}
       RETURNING *

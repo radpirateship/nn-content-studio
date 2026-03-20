@@ -2,6 +2,7 @@ import { z } from "zod"
 
 const optionalString = z.string().trim().optional()
 const nullableOptionalString = z.string().trim().nullable().optional()
+const nullableJsonRecord = z.record(z.string(), z.unknown()).nullable().optional()
 const productInputSchema = z.object({
   title: z.string().trim().min(1),
   description: optionalString,
@@ -126,6 +127,7 @@ export const createArticleSchema = z.object({
   tone: nullableOptionalString,
   article_type: nullableOptionalString,
   shopify_blog_tag: nullableOptionalString,
+  image_storyboard: nullableJsonRecord,
 })
 
 export const updateArticleSchema = z
@@ -144,6 +146,7 @@ export const updateArticleSchema = z
     tone: nullableOptionalString,
     article_type: nullableOptionalString,
     shopify_blog_tag: nullableOptionalString,
+    image_storyboard: nullableJsonRecord,
   })
   .refine((body) => body.id !== undefined && body.id !== null && String(body.id).trim().length > 0, {
     message: "id is required",
