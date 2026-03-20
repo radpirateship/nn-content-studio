@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
+import { redactSensitiveData } from '@/lib/api-utils'
 
 function getDb() {
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set')
@@ -52,7 +53,12 @@ export async function GET(request: NextRequest) {
     // Also cleanup old entries (older than 7 days) on every read
     await sql`DELETE FROM activity_log WHERE created_at < NOW() - INTERVAL '7 days'`.catch(() => {})
 
-    return NextResponse.json({ entries: rows, count: rows.length })
+    const safeRows = rows.map((row: Record<string, unknown>) => ({
+      ...row,
+      metadata: redactSensitiveData(row.metadata ?? {}),
+    }))
+
+    return NextResponse.json({ entries: safeRows, count: safeRows.length })
   } catch (error) {
     console.error('[activity-log] GET error:', error)
     return NextResponse.json({ entries: [], count: 0, error: 'Failed to fetch activity log' }, { status: 500 })
@@ -70,9 +76,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'action is required' }, { status: 400 })
     }
 
+    const safeMetadata = redactSensitiveData(metadata)
+
     await sql`
       INSERT INTO activity_log (action, category, detail, status, duration_ms, metadata)
-      VALUES (${action}, ${category}, ${detail}, ${status}, ${duration_ms}, ${JSON.stringify(metadata)})
+      VALUES (${action}, ${category}, ${detail}, ${status}, ${duration_ms}, ${JSON.stringify(safeMetadata)})
     `
 
     return NextResponse.json({ success: true })

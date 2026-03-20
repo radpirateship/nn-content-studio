@@ -258,7 +258,6 @@ export function BulkUploadView({
       const rawSlug = (item.shopifySlug || '').replace(/^\/blogs\/[^/]+\//, '')
     const slug = rawSlug || generateSlug(item.title)
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const article: any = {
         id: `article-${Date.now()}`,
         title: item.title, slug,

@@ -438,7 +438,7 @@ export function GuideImageStoryboard({ guide, onSave, onBack }: GuideImageStoryb
       }
     }
     prevReadyCountRef.current = currentReadyCount
-  }, [concepts]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [concepts])
 
   /* Save images into section_content, then reassemble the complete page */
   const handleSave = async () => {

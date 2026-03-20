@@ -2,10 +2,17 @@
 // Safe to call multiple times (all operations use IF NOT EXISTS / ON CONFLICT)
 import { NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
+import { logRouteEvent } from '@/lib/api-utils'
 
 function getDb() {
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set')
   return neon(process.env.DATABASE_URL)
+}
+
+function isMigrationAllowed() {
+  if (process.env.ALLOW_RUNTIME_MIGRATIONS === 'true') return true
+  if (process.env.NODE_ENV !== 'production') return true
+  return false
 }
 
 // Canonical Naked Nutrition collection list — matches live Shopify collections
@@ -21,6 +28,25 @@ const CANONICAL_COLLECTIONS = [
 ]
 
 export async function GET() {
+  if (!isMigrationAllowed()) {
+    logRouteEvent('Runtime migration blocked', {
+      category: 'general',
+      status: 'warning',
+      detail: '/api/migrate is disabled in this environment',
+      metadata: {
+        nodeEnv: process.env.NODE_ENV || 'unknown',
+      },
+    })
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Runtime migrations are disabled in this environment. Set ALLOW_RUNTIME_MIGRATIONS=true to enable them explicitly.',
+      },
+      { status: 403 }
+    )
+  }
+
   const results: Record<string, string> = {}
   const sql = getDb()
 

@@ -9,6 +9,8 @@ import { productStore } from "@/lib/product-store"
 import { CATEGORY_LABELS } from "@/lib/nn-categories"
 import { NN_STYLES } from "@/lib/nn-template"
 import { randomUUID } from "crypto"
+import { revampGenerateRequestSchema } from "@/lib/api-schemas"
+import { getErrorMessage, logRouteEvent, parseAndValidateJson } from "@/lib/api-utils"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -244,8 +246,19 @@ ${cards}
 // ── Main handler ─────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now()
   try {
-    const body: GenerateRequest = await request.json()
+    const parsed = await parseAndValidateJson(request, revampGenerateRequestSchema)
+    if (!parsed.success) {
+      logRouteEvent("Revamp generate validation failed", {
+        category: "revamp",
+        status: "warning",
+        detail: "Invalid request body",
+      })
+      return parsed.response
+    }
+
+    const body = parsed.data
 
     const {
       existingContent,
@@ -262,12 +275,26 @@ export async function POST(request: NextRequest) {
       calculatorType,
       includeComparisonTable = false,
       specialInstructions,
-      approvedOutline,
+      approvedOutline = [],
       citations = [],
       revampSourceId,
       collection,
       relatedArticles,
     } = body
+
+    logRouteEvent("Revamp generate request received", {
+      category: "revamp",
+      detail: body.titleTag || keyword,
+      metadata: {
+        category,
+        keyword,
+        wordCount,
+        includeProducts,
+        includeFAQ,
+        citationCount: citations.length,
+        approvedOutlineCount: approvedOutline.length,
+      },
+    })
 
     const categoryLabel = (CATEGORY_LABELS as Record<string, string>)[category] || category || "Supplements"
     const collectionSlug = CATEGORY_COLLECTION[category] || (collection ? collectionNameToSlug(collection) : "all")
@@ -287,7 +314,7 @@ export async function POST(request: NextRequest) {
       ? `APPROVED REWRITE OUTLINE (FOLLOW THIS STRUCTURE):\n${approvedOutline
           .map((item) => {
             const tag = item.isNew ? " [NEW SECTION]" : " [FROM ORIGINAL]"
-            return `- ${item.heading}${tag}\n  Key points: ${item.keyPoints.join(", ")}`
+            return `- ${item.heading}${tag}\n  Key points: ${(item.keyPoints || []).join(", ")}`
           })
           .join("\n")}`
       : ""
@@ -754,9 +781,28 @@ ${faqSchema}`.trim()
       imageCount: 0,
     }
 
+    logRouteEvent("Revamp generate succeeded", {
+      category: "revamp",
+      detail: title,
+      durationMs: Date.now() - startedAt,
+      metadata: {
+        dbId,
+        category,
+        keyword,
+        wordCount: wordCountActual,
+      },
+    })
+
     return NextResponse.json({ article })
   } catch (error) {
     console.error("[revamp/generate] Error:", error)
+    logRouteEvent("Revamp generate failed", {
+      category: "revamp",
+      status: "error",
+      detail: "Revamp generation failed",
+      durationMs: Date.now() - startedAt,
+      metadata: { error: getErrorMessage(error, "Failed to generate revamped content") },
+    })
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to generate revamped content" },
       { status: 500 }

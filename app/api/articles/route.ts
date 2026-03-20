@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSQL } from "@/lib/db";
 import { logActivity } from "@/lib/activity-log";
+import { createArticleSchema, updateArticleSchema } from "@/lib/api-schemas";
+import { getErrorMessage, logRouteEvent, parseAndValidateJson } from "@/lib/api-utils";
 
 // GET - Fetch all articles or a specific article
 export async function GET(request: NextRequest) {
@@ -36,9 +38,19 @@ export async function GET(request: NextRequest) {
 
 // POST - Create a new article
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
   try {
+    const parsed = await parseAndValidateJson(request, createArticleSchema);
+    if (!parsed.success) {
+      logRouteEvent("Article create validation failed", {
+        category: "articles",
+        status: "warning",
+        detail: "Invalid request body",
+      });
+      return parsed.response;
+    }
+
     const sql = getSQL();
-    const body = await request.json();
     const {
       title,
       slug,
@@ -53,7 +65,13 @@ export async function POST(request: NextRequest) {
       tone,
       article_type,
       shopify_blog_tag,
-    } = body;
+    } = parsed.data;
+
+    logRouteEvent("Article create request received", {
+      category: "articles",
+      detail: title,
+      metadata: { slug, category, hasKeyword: Boolean(keyword) },
+    });
 
     // Check if slug exists and make it unique if needed
     let uniqueSlug = slug;
@@ -82,11 +100,19 @@ export async function POST(request: NextRequest) {
     logActivity("Article saved", {
       category: "articles",
       detail: title,
+      durationMs: Date.now() - startedAt,
     });
 
     return NextResponse.json(articles[0], { status: 201 });
   } catch (error) {
     console.error("Error creating article:", error);
+    logRouteEvent("Article create failed", {
+      category: "articles",
+      status: "error",
+      detail: "Failed to create article",
+      durationMs: Date.now() - startedAt,
+      metadata: { error: getErrorMessage(error, "Failed to create article") },
+    });
     logActivity("Article save failed", {
       category: "articles",
       status: "error",
@@ -101,14 +127,26 @@ export async function POST(request: NextRequest) {
 
 // PUT - Update an existing article
 export async function PUT(request: NextRequest) {
+  const startedAt = Date.now();
   try {
-    const sql = getSQL();
-    const body = await request.json();
-    const { id, ...updates } = body;
-
-    if (!id) {
-      return NextResponse.json({ error: "Article ID required" }, { status: 400 });
+    const parsed = await parseAndValidateJson(request, updateArticleSchema);
+    if (!parsed.success) {
+      logRouteEvent("Article update validation failed", {
+        category: "articles",
+        status: "warning",
+        detail: "Invalid request body",
+      });
+      return parsed.response;
     }
+
+    const sql = getSQL();
+    const { id, ...updates } = parsed.data;
+
+    logRouteEvent("Article update request received", {
+      category: "articles",
+      detail: `id:${id}`,
+      metadata: { fields: Object.keys(updates).filter((key) => updates[key as keyof typeof updates] !== undefined) },
+    });
 
     // Build dynamic update query
     // Use parameterized query for safety
@@ -137,9 +175,22 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Article not found" }, { status: 404 });
     }
 
+    logRouteEvent("Article updated", {
+      category: "articles",
+      detail: `id:${id}`,
+      durationMs: Date.now() - startedAt,
+    });
+
     return NextResponse.json(articles[0]);
   } catch (error) {
     console.error("Error updating article:", error);
+    logRouteEvent("Article update failed", {
+      category: "articles",
+      status: "error",
+      detail: "Failed to update article",
+      durationMs: Date.now() - startedAt,
+      metadata: { error: getErrorMessage(error, "Failed to update article") },
+    });
     return NextResponse.json(
       { error: "Failed to update article" },
       { status: 500 }

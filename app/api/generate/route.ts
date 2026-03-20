@@ -6,6 +6,8 @@ import { callAI } from "@/lib/ai";
 import { CATEGORY_LABELS } from "@/lib/nn-categories";
 import { NN_STYLES } from "@/lib/nn-template";
 import { logActivity } from "@/lib/activity-log";
+import { generateArticleRequestSchema } from "@/lib/api-schemas";
+import { getErrorMessage, logRouteEvent, parseAndValidateJson } from "@/lib/api-utils";
 
 // ============================================================================
 // SVG icon for external links
@@ -243,19 +245,40 @@ ${cards}
 // MAIN ROUTE HANDLER
 // ============================================================================
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
   try {
-    const body = await request.json();
+    const parsed = await parseAndValidateJson(request, generateArticleRequestSchema);
+    if (!parsed.success) {
+      logRouteEvent("Generate article validation failed", {
+        category: "generation",
+        status: "warning",
+        detail: "Invalid request body",
+      });
+      return parsed.response;
+    }
+
+    const body = parsed.data;
     const { title, keyword, category, tone, wordCount, products, relatedArticles,
       articleType, audience, collection, specialInstructions, includeComparisonTable } = body;
 
-    if (!title || !keyword) {
-      return NextResponse.json({ error: "Title and keyword are required" }, { status: 400 });
-    }
+    logRouteEvent("Generate article request received", {
+      category: "generation",
+      detail: title,
+      metadata: {
+        keyword,
+        category,
+        wordCount: wordCount || 2500,
+        articleType,
+        audience,
+        relatedArticleCount: relatedArticles?.length || 0,
+        productCount: products?.length || 0,
+      },
+    });
 
     const targetWordCount = wordCount || 2500;
     const articleTone = tone || "educational";
-    const categoryLabel = CATEGORY_LABELS[category as NNCategory] || category || "Supplements";
-    const collectionSlug = CATEGORY_COLLECTION[category] || (collection ? collectionNameToSlug(collection) : "all");
+    const categoryLabel = category ? CATEGORY_LABELS[category as NNCategory] || category : "Supplements";
+    const collectionSlug = category ? CATEGORY_COLLECTION[category] || (collection ? collectionNameToSlug(collection) : "all") : (collection ? collectionNameToSlug(collection) : "all");
     const readTime = Math.max(5, Math.round(targetWordCount / 250));
   
     // Map article type to structural guidance
@@ -599,7 +622,19 @@ ${faqSchema}`.trim();
     logActivity("Article generated", {
       category: "generation",
       detail: title,
+      durationMs: Date.now() - startedAt,
       metadata: { keyword, category, wordCount: targetWordCount },
+    });
+
+    logRouteEvent("Generate article succeeded", {
+      category: "generation",
+      detail: title,
+      durationMs: Date.now() - startedAt,
+      metadata: {
+        keyword,
+        category,
+        wordCount: targetWordCount,
+      },
     });
 
     return NextResponse.json({
@@ -609,6 +644,13 @@ ${faqSchema}`.trim();
     });
   } catch (error) {
     console.error("[v0] Generation error:", error);
+    logRouteEvent("Generate article failed", {
+      category: "generation",
+      status: "error",
+      detail: "Article generation failed",
+      durationMs: Date.now() - startedAt,
+      metadata: { error: getErrorMessage(error, "Failed to generate content") },
+    });
     logActivity("Article generation failed", {
       category: "generation",
       status: "error",

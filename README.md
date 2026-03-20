@@ -87,6 +87,8 @@ Copy the example below into `.env.local` and fill in your values (see [Environme
 cp .env.example .env.local
 ```
 
+The repository now includes a real `.env.example` based on the variables used by the app and API routes.
+
 ### Run Database Migrations
 
 Execute the SQL scripts in your Neon console (or via the `/api/migrate` endpoint after starting the app):
@@ -106,6 +108,19 @@ npm run dev
 ```
 
 The app will be available at `http://localhost:3000`.
+
+### Quality Checks
+
+```bash
+npm run lint
+npm run typecheck
+npm run build
+```
+
+Notes:
+- `lint` is configured as a conservative baseline check and is intentionally permissive in this stabilization pass.
+- `typecheck` measures the current TypeScript error set separately from production build behavior.
+- `build` still follows the current Next.js production configuration, including `typescript.ignoreBuildErrors`.
 
 ---
 
@@ -131,6 +146,8 @@ The app will be available at `http://localhost:3000`.
 | `NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN` | Public-facing store domain |
 | `NEXT_PUBLIC_BASE_URL` | Base URL for OAuth callbacks |
 | `DATABASE_URL_UNPOOLED` | Unpooled Neon connection (for migrations) |
+| `VERCEL_URL` | Optional Vercel hostname used for internal base URL fallback |
+| `ALLOW_RUNTIME_MIGRATIONS` | Explicitly enables `/api/migrate` in protected environments |
 
 ---
 
@@ -254,10 +271,29 @@ Upload a CSV with columns for title, keyword, category, tone, word count, and ot
 | `DELETE` | `/api/articles` | Delete article by ID |
 | `POST` | `/api/articles/edit-section` | Edit a single section of an article |
 
+Request contract notes:
+- `POST /api/generate` requires `title` and `keyword`; other fields remain optional and preserve existing UI payloads.
+- `POST /api/articles` requires `title`, `slug`, and `html_content`.
+- `PUT /api/articles` requires `id`; all update fields remain optional.
+- `POST /api/shopify/blog/publish` requires `title` and `bodyHtml`; optional publish metadata remains supported.
+- `POST /api/revamp/generate` requires `existingContent`, `category`, and `keyword`; `approvedOutline` and `citations` are accepted as arrays and default safely when omitted.
+
 ### Link Enrichment
 
 | Method | Endpoint | Description |
 |---|---|---|
+
+Additional active API groups in the current app:
+- `/api/revamp/generate/content`, `/api/revamp/generate/faq`, `/api/revamp/generate/finalize`, `/api/revamp/generate/images`
+- `/api/shopify/blog/fetch`, `/api/shopify/blog/search`, `/api/shopify/blog/update`, `/api/shopify/pages/publish`
+- `/api/ultimate-guides/*`
+- `/api/activity-log`, `/api/diagnostics`, `/api/migrate`
+
+## Operations Notes
+
+- `/api/migrate` is now intentionally gated. In protected environments, it requires `ALLOW_RUNTIME_MIGRATIONS=true`.
+- Activity log metadata is redacted before persistence/display for obviously sensitive keys.
+- A manual verification checklist is available in `docs/manual-smoke-checklist.md`.
 | `POST` | `/api/articles/add-links` | AI-powered link suggestion and injection |
 | `POST` | `/api/articles/scan-links` | Scan content for link opportunities |
 | `POST` | `/api/articles/apply-links` | Apply approved links to HTML |

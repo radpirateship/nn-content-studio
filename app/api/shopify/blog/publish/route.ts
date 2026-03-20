@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { replaceWithShopifyImages } from "@/lib/shopifyImageUpload";
 import { getShopifyAccessToken, SHOPIFY_ADMIN_DOMAIN } from "@/lib/shopifyAuth";
 import { logActivity } from "@/lib/activity-log";
+import { shopifyPublishRequestSchema } from "@/lib/api-schemas";
+import { getErrorMessage, logRouteEvent, parseAndValidateJson } from "@/lib/api-utils";
 
 // Allow enough time for Shopify staged uploads + polling (each image ~4-30s)
 export const maxDuration = 120;
@@ -63,7 +65,18 @@ export async function GET() {
 
 // POST: Publish an article to a Shopify blog
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
   try {
+    const parsed = await parseAndValidateJson(request, shopifyPublishRequestSchema);
+    if (!parsed.success) {
+      logRouteEvent("Shopify publish validation failed", {
+        category: "publish",
+        status: "warning",
+        detail: "Invalid request body",
+      });
+      return parsed.response;
+    }
+
     const {
       title,
       bodyHtml,
@@ -77,14 +90,19 @@ export async function POST(request: NextRequest) {
       featuredImageUrl,
       featuredImageAlt,
       category,
-    } = await request.json();
+    } = parsed.data;
 
-    if (!title || !bodyHtml) {
-      return NextResponse.json(
-        { error: "Title and bodyHtml are required" },
-        { status: 400 }
-      );
-    }
+    logRouteEvent("Shopify publish request received", {
+      category: "publish",
+      detail: title,
+      metadata: {
+        category,
+        published: published !== false,
+        hasFeaturedImage: Boolean(featuredImageUrl),
+        blogId: blogId ?? null,
+        metafieldCount: metafields?.length || 0,
+      },
+    });
 
     // If no blogId provided, resolve the right NN blog based on article category
     let targetBlogId = blogId;
@@ -117,7 +135,7 @@ export async function POST(request: NextRequest) {
         'vegan': 'protein',
         'collagen': 'wellness',
       }
-      const preferredHandle = CATEGORY_TO_BLOG[category] || 'news'
+      const preferredHandle = category ? CATEGORY_TO_BLOG[category] || 'news' : 'news'
       const preferredBlog = blogs.find((b) => b.handle === preferredHandle)
       const fallback = blogs.find((b) => b.handle === 'news') || blogs[0]
       targetBlogId = preferredBlog?.id || fallback?.id
@@ -236,7 +254,19 @@ export async function POST(request: NextRequest) {
     logActivity("Published to Shopify", {
       category: "publish",
       detail: title,
+      durationMs: Date.now() - startedAt,
       metadata: { handle: createdArticle.handle },
+    });
+
+    logRouteEvent("Shopify publish succeeded", {
+      category: "publish",
+      detail: title,
+      durationMs: Date.now() - startedAt,
+      metadata: {
+        handle: createdArticle.handle,
+        blogId: targetBlogId,
+        blogHandle: resolvedBlogHandle,
+      },
     });
 
     return NextResponse.json({
@@ -255,6 +285,13 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Failed to publish article:", error);
+    logRouteEvent("Shopify publish failed", {
+      category: "publish",
+      status: "error",
+      detail: "Publish failed",
+      durationMs: Date.now() - startedAt,
+      metadata: { error: getErrorMessage(error, "Failed to publish article to Shopify") },
+    });
     logActivity("Shopify publish failed", {
       category: "publish",
       status: "error",
