@@ -579,7 +579,7 @@ export function GuideImageStoryboard({ guide, onSave, onBack }: GuideImageStoryb
                 onClick={handleDraftPrompts}
                 disabled={isDrafting}
                 className="gap-2"
-                style={{ background: 'var(--ppw-accent)', color: '#fff' }}
+                style={{ background: 'var(--nn-accent)', color: '#fff' }}
               >
                 {isDrafting ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> Drafting Promptsâ¦</>
@@ -630,7 +630,7 @@ export function GuideImageStoryboard({ guide, onSave, onBack }: GuideImageStoryb
       </div>
 
       {/* Sticky Footer */}
-      <div className="flex-shrink-0 border-t px-6 py-4" style={{ background: 'color-mix(in srgb, var(--ppw-accent) 6%, var(--bg))', borderColor: 'var(--border)' }}>
+      <div className="flex-shrink-0 border-t px-6 py-4" style={{ background: 'color-mix(in srgb, var(--nn-accent) 6%, var(--bg))', borderColor: 'var(--border)' }}>
         <div className="flex items-center justify-between">
           <Button onClick={onBack} variant="outline" className="gap-2">
             <ChevronLeft className="h-4 w-4" /> Back to Content
@@ -646,7 +646,7 @@ export function GuideImageStoryboard({ guide, onSave, onBack }: GuideImageStoryb
               onClick={handleSave}
               disabled={isSaving || readyCount === 0}
               className="gap-2"
-              style={{ background: 'var(--ppw-accent)', color: '#fff' }}
+              style={{ background: 'var(--nn-accent)', color: '#fff' }}
             >
               {isSaving ? (
                 <><Loader2 className="h-4 w-4 animate-spin" /> Savingâ¦</>

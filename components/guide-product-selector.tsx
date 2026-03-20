@@ -500,7 +500,7 @@ export function GuideProductSelector({ guide, onSave, onBack }: GuideProductSele
           onClick={handleSave}
           disabled={isSaving || selectedProducts.length === 0}
           className="ml-auto gap-2"
-          style={{ background: 'var(--ppw-accent)', color: '#fff' }}
+          style={{ background: 'var(--nn-accent)', color: '#fff' }}
         >
           {isSaving ? (
             <>

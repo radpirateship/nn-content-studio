@@ -3,7 +3,7 @@ import { parseShopifyDomain } from "./parse-shopify-domain";
 import { DEFAULT_PAGE_SIZE, DEFAULT_SORT_KEY } from "./constants";
 
 const SHOPIFY_API_VERSION = "2024-01";
-const HARDCODED_DOMAIN = "peakprimal.myshopify.com";
+const HARDCODED_DOMAIN = "nakednutrition.myshopify.com";
 
 // Read ALL Shopify config lazily at request time (not module load)
 function getShopifyConfig() {

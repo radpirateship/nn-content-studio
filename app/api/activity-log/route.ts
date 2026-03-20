@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
 
 function getDb() {
-  return neon(process.env.DATABASE_URL!)
+  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set')
+  return neon(process.env.DATABASE_URL)
 }
 
 // GET — fetch recent log entries

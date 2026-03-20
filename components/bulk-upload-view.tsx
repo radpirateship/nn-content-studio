@@ -3,7 +3,8 @@
 import { useState, useRef } from 'react'
 import { Layers, Upload, FileSpreadsheet, Plus, Trash2, Play, Loader2, Check, AlertCircle, X, Download, Eye, RotateCcw, Send, ArrowLeft, Circle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import type { GeneratedArticle, Product, WellnessCategory } from '@/lib/types'
+import type { GeneratedArticle, Product } from '@/lib/types'
+import type { NNCategory } from '@/lib/nn-categories'
 import type { ImageModel } from '@/lib/imageGeneration'
 
 interface BulkItem {
@@ -36,36 +37,26 @@ interface BulkUploadViewProps {
 }
 
 const COLLECTIONS = [
-  'Hydrogen Water', 'Water Ionizers', 'Hyperbaric Chambers', 'Red Light Therapy',
-  'Cold Plunges', 'Pilates', 'Infrared Saunas', 'Barrel Saunas', 'Saunas', 'Sauna Heaters',
-  'Massage Equipment', 'Compression Boots', 'Sensory Deprivation Tanks', 'Sauna Accessories', 'Steam',
-  'Elliptical Machines', 'Exercise Bikes', 'Treadmills', 'Stair Climbers', 'Vertical Climbers', 'Air Filters',
+  'Protein Powder', 'Whey Protein', 'Vegan Protein Powder',
+  'Collagen Peptides', 'Overnight Oats',
+  'Performance & Recovery', 'Supplements', 'Kids',
 ]
 
 const COLLECTION_TO_CATEGORY: Record<string, string> = {
   // Display names
-  'Hydrogen Water': 'hydrogen-water', 'Water Ionizers': 'water-ionizers',
-  'Hyperbaric Chambers': 'hyperbaric-chambers', 'Red Light Therapy': 'red-light-therapy',
-  'Cold Plunges': 'cold-plunges', 'Pilates': 'pilates',
-  'Infrared Saunas': 'infrared-saunas', 'Saunas': 'saunas', 'Barrel Saunas': 'barrel-saunas',
-  'Sauna Heaters': 'sauna-heaters', 'Sauna Accessories': 'sauna-accessories',
-  'Massage Equipment': 'massage-equipment', 'Massage Chairs': 'massage-equipment', 'Massage': 'massage-equipment',
-  'Compression Boots': 'compression-boots', 'Air Filters': 'air-filters',
-  'Sensory Deprivation Tanks': 'sensory-deprivation-tanks',
-  'Steam': 'steam',
-  'Elliptical Machines': 'elliptical-machines', 'Exercise Bikes': 'exercise-bikes',
-  'Treadmills': 'treadmills', 'Stair Climbers': 'stair-climbers', 'Vertical Climbers': 'vertical-climbers',
+  'Protein Powder': 'protein-powder', 'Whey Protein': 'whey-protein',
+  'Vegan Protein Powder': 'vegan-protein-powder',
+  'Collagen Peptides': 'collagen-peptides',
+  'Overnight Oats': 'overnight-oats',
+  'Performance & Recovery': 'improve-performance-recovery',
+  'Supplements': 'supplements', 'Kids': 'kids',
   // Slugs (so CSV can use either display name or slug)
-  'hydrogen-water': 'hydrogen-water', 'water-ionizers': 'water-ionizers',
-  'hyperbaric-chambers': 'hyperbaric-chambers', 'red-light-therapy': 'red-light-therapy',
-  'cold-plunge': 'cold-plunges', 'cold-plunges': 'cold-plunges', 'infrared-saunas': 'infrared-saunas', 'saunas': 'saunas', 'barrel-saunas': 'barrel-saunas',
-  'sauna-heaters': 'sauna-heaters', 'sauna-accessories': 'sauna-accessories',
-  'massage-equipment': 'massage-equipment',
-  'sensory-deprivation-tanks': 'sensory-deprivation-tanks',
-  'steam': 'steam',
-  'elliptical-machines': 'elliptical-machines', 'exercise-bikes': 'exercise-bikes',
-  'treadmills': 'treadmills', 'stair-climbers': 'stair-climbers', 'vertical-climbers': 'vertical-climbers',
-  'pilates': 'pilates',
+  'protein-powder': 'protein-powder', 'whey-protein': 'whey-protein',
+  'vegan-protein-powder': 'vegan-protein-powder',
+  'collagen-peptides': 'collagen-peptides',
+  'overnight-oats': 'overnight-oats',
+  'improve-performance-recovery': 'improve-performance-recovery',
+  'supplements': 'supplements', 'kids': 'kids',
 }
 
 export function BulkUploadView({
@@ -175,7 +166,7 @@ export function BulkUploadView({
 
   // ââ Download CSV template ââ
   const downloadTemplate = () => {
-    const csv = 'title,keyword,collection\nBest Infrared Saunas for Home Use,best infrared saunas,Infrared Saunas\nCold Plunge Benefits for Recovery,cold plunge benefits,Cold Plunges\n'
+    const csv = 'title,keyword,collection\nBest Whey Protein Powder for Muscle Gain,best whey protein powder,Whey Protein\nCollagen Peptides Benefits: What the Science Says,collagen peptides benefits,Collagen Peptides\n'
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -278,7 +269,7 @@ export function BulkUploadView({
         featuredImage: undefined, contentImages: [],
         products: products.map(p => ({ ...p, tags: typeof (p as any).tags === 'string' ? (p as any).tags.split(',').map((t: string) => t.trim()) : (p as any).tags || [], url: p.handle ? `https://nakednutrition.com/products/${p.handle}` : '#', isAvailable: true })),
         faqs: outline?.faq?.map((f: any) => ({ question: f.question, answer: f.briefAnswer })) || [],
-        schemaMarkup: '', category: category as WellnessCategory, keyword: item.keyword,
+        schemaMarkup: '', category: category as NNCategory, keyword: item.keyword,
         shopifyBlogTag: item.collection as any,
         articleType: item.articleType,
         wordCount, createdAt: new Date(), status: 'draft',

@@ -130,24 +130,14 @@ function WizardStepBar({ steps, currentStep, completedSteps, onStepClick }: Wiza
 
 // ── Collections list (same as article system) ──
 const COLLECTIONS = [
-  { label: 'Hydrogen Water', slug: 'hydrogen-water' },
-  { label: 'Water Ionizers', slug: 'water-ionizers' },
-  { label: 'Hyperbaric Chambers', slug: 'hyperbaric-chambers' },
-  { label: 'Red Light Therapy', slug: 'red-light-therapy' },
-  { label: 'Cold Plunges', slug: 'cold-plunges' },
-  { label: 'Pilates', slug: 'pilates' },
-  { label: 'Saunas', slug: 'saunas' },
-  { label: 'Sauna Heaters', slug: 'sauna-heaters' },
-  { label: 'Massage Equipment', slug: 'massage-equipment' },
-  { label: 'Compression Boots', slug: 'compression-boots' },
-  { label: 'Sensory Deprivation Tanks', slug: 'sensory-deprivation-tanks' },
-  { label: 'Steam', slug: 'steam' },
-  { label: 'Elliptical Machines', slug: 'elliptical-machines' },
-  { label: 'Exercise Bikes', slug: 'exercise-bikes' },
-  { label: 'Treadmills', slug: 'treadmills' },
-  { label: 'Stair Climbers', slug: 'stair-climbers' },
-  { label: 'Vertical Climbers', slug: 'vertical-climbers' },
-  { label: 'Air Filters', slug: 'air-filters' },
+  { label: 'Protein Powder', slug: 'protein-powder' },
+  { label: 'Whey Protein', slug: 'whey-protein' },
+  { label: 'Vegan Protein Powder', slug: 'vegan-protein-powder' },
+  { label: 'Collagen Peptides', slug: 'collagen-peptides' },
+  { label: 'Overnight Oats', slug: 'overnight-oats' },
+  { label: 'Performance & Recovery', slug: 'improve-performance-recovery' },
+  { label: 'Supplements', slug: 'supplements' },
+  { label: 'Kids', slug: 'kids' },
 ]
 
 interface ConfigFormProps {
@@ -334,7 +324,7 @@ function ConfigForm({ onSave, initialGuide }: ConfigFormProps) {
             <label className="block text-sm font-medium mb-2">Guide Title *</label>
             <input
               type="text"
-              placeholder="e.g., The Complete Guide to Cold Plunges"
+              placeholder="e.g., The Complete Guide to Whey Protein"
               value={formData.title}
               onChange={handleTitleChange}
               className="w-full px-3 py-2 border rounded-md"
@@ -371,18 +361,18 @@ function ConfigForm({ onSave, initialGuide }: ConfigFormProps) {
               <label className="block text-sm font-medium mb-2">Short Topic *</label>
               <input
                 type="text"
-                placeholder="e.g., Cold Plunges"
+                placeholder="e.g., Whey Protein"
                 value={formData.topic_short}
                 onChange={e => setFormData(prev => ({ ...prev, topic_short: e.target.value }))}
                 className="w-full px-3 py-2 border rounded-md"
               />
-              <p className="text-xs text-gray-500 mt-1">Entity name only — e.g. &quot;Pilates&quot; not &quot;The Ultimate Guide to Pilates&quot;</p>
+              <p className="text-xs text-gray-500 mt-1">Entity name only — e.g. &quot;Whey Protein&quot; not &quot;The Ultimate Guide to Whey Protein&quot;</p>
             </div>
             <div>
               <label className="block text-sm font-medium mb-2">Plural Form</label>
               <input
                 type="text"
-                placeholder="e.g., Cold Plunges"
+                placeholder="e.g., Whey Proteins"
                 value={formData.topic_short_plural}
                 onChange={e => setFormData(prev => ({ ...prev, topic_short_plural: e.target.value }))}
                 className="w-full px-3 py-2 border rounded-md"
@@ -394,7 +384,7 @@ function ConfigForm({ onSave, initialGuide }: ConfigFormProps) {
             <label className="block text-sm font-medium mb-2">Full Topic / H1</label>
             <input
               type="text"
-              placeholder="e.g., The Complete Guide to Cold Plunges for Home Use"
+              placeholder="e.g., The Complete Guide to Whey Protein for Athletes"
               value={formData.topic_full}
               onChange={e => setFormData(prev => ({ ...prev, topic_full: e.target.value }))}
               className="w-full px-3 py-2 border rounded-md"
@@ -443,7 +433,7 @@ function ConfigForm({ onSave, initialGuide }: ConfigFormProps) {
           <div className="flex gap-2 items-center p-3 rounded-lg bg-gray-50 border">
             <input
               type="text"
-              placeholder="Template name (e.g. Sauna Guide)"
+              placeholder="Template name (e.g. Protein Guide)"
               value={templateName}
               onChange={e => setTemplateName(e.target.value)}
               className="flex-1 px-3 py-1.5 border rounded-md text-sm"

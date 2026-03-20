@@ -37,11 +37,11 @@ async function shopifyAdminFetch(path: string, options: RequestInit = {}) {
 }
 
 /**
- * GET /api/shopify/blog/search?q=versaclimber
- * GET /api/shopify/blog/search?tag=Vertical+Climbers
- * GET /api/shopify/blog/search?tag=Vertical+Climbers&limit=50
+ * GET /api/shopify/blog/search?q=whey+protein
+ * GET /api/shopify/blog/search?tag=Protein+Powder
+ * GET /api/shopify/blog/search?tag=Protein+Powder&limit=50
  *
- * Searches articles by title keyword or tag across the wellness blog.
+ * Searches articles by title keyword or tag across the blog.
  * Returns lean payload — no body_html — for fast search results.
  */
 export async function GET(request: NextRequest) {
@@ -63,9 +63,9 @@ export async function GET(request: NextRequest) {
     const blogs = blogsData.blogs || [];
     const blog = blogs.find(
       (b: { handle: string }) =>
+        b.handle === "news" ||
         b.handle === "wellness" ||
-        b.handle === "wellness-hub" ||
-        b.handle === "news"
+        b.handle === "protein"
     );
     const blogId = blog?.id || blogs[0]?.id;
 

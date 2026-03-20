@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
 
     const tokenData = await tokenRes.json();
     const accessToken = tokenData.access_token;
-        console.log("NEW_SHOPIFY_TOKEN:", accessToken);
+        // Token logged in masked form below — never log full token
     const scope = tokenData.scope;
 
     console.log("[shopify-auth-callback] SUCCESS! Got access token:", accessToken?.slice(0, 12) + "...");

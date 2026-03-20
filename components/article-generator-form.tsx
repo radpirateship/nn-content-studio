@@ -17,8 +17,19 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, Sparkles, FileText, ImageIcon, ShoppingBag, HelpCircle, Code, Upload, Download, X, ListChecks } from 'lucide-react'
-import type { ArticleInput, WellnessCategory, ArticleTone, ShopifyBlogTag } from '@/lib/types'
-import { CATEGORY_LABELS, TONE_LABELS, SHOPIFY_BLOG_TAG_LABELS } from '@/lib/types'
+import type { ArticleInput, ArticleTone } from '@/lib/types'
+import { CATEGORY_LABELS, TONE_LABELS } from '@/lib/types'
+import type { NNCategory } from '@/lib/nn-categories'
+
+const SHOPIFY_BLOG_TAG_LABELS: Record<string, string> = {
+  'news': 'News',
+  'wellness': 'Wellness',
+  'recipes': 'Recipes',
+  'fitness': 'Fitness',
+  'diets': 'Diets',
+  'protein': 'Protein',
+  'supplements': 'Supplements',
+}
 
 interface ArticleGeneratorFormProps {
   onSubmit: (input: ArticleInput) => Promise<void>
@@ -56,34 +67,34 @@ export function parseCSV(text: string): ArticleInput[] {
     return {
       title: row.title || '',
       keyword: row.keyword || '',
-    category: (row.category || getStickyCategory()) as WellnessCategory,
+    category: (row.category || getStickyCategory()) as NNCategory,
     tone: (row.tone || 'authoritative') as ArticleTone,
       wordCount: parseInt(row.wordCount) || 2000,
       includeProducts: ['yes', 'true', '1', ''].includes(row.includeProducts?.toLowerCase() ?? ''),
       includeFAQ: ['yes', 'true', '1', ''].includes(row.includeFAQ?.toLowerCase() ?? ''),
       includeSchema: ['yes', 'true', '1', ''].includes(row.includeSchema?.toLowerCase() ?? ''),
       shopifySlug: row.shopifySlug || '',
-      shopifyBlogTag: (row.shopifyBlogTag || 'wellness') as ShopifyBlogTag,
+      shopifyBlogTag: (row.shopifyBlogTag || 'news') as string,
     }
   }).filter(a => a.title && a.keyword)
 }
 
-function getStickyCategory(): WellnessCategory {
-  if (typeof window === 'undefined') return 'general-wellness'
+function getStickyCategory(): NNCategory {
+  if (typeof window === 'undefined') return 'general-nutrition'
   try {
-    const saved = localStorage.getItem('ppw-sticky-category')
-    if (saved) return saved as WellnessCategory
+    const saved = localStorage.getItem('nn-sticky-category')
+    if (saved) return saved as NNCategory
   } catch {}
-  return 'general-wellness'
+  return 'general-nutrition'
 }
 
-function getStickyBlogTag(): ShopifyBlogTag {
-  if (typeof window === 'undefined') return 'wellness'
+function getStickyBlogTag(): string {
+  if (typeof window === 'undefined') return 'news'
   try {
-    const saved = localStorage.getItem('ppw-sticky-blogtag')
-    if (saved) return saved as ShopifyBlogTag
+    const saved = localStorage.getItem('nn-sticky-blogtag')
+    if (saved) return saved
   } catch {}
-  return 'wellness'
+  return 'news'
 }
 
 export function ArticleGeneratorForm({ onSubmit, onBulkSubmit, isGenerating, initialBulkArticles }: ArticleGeneratorFormProps) {
@@ -128,21 +139,25 @@ export function ArticleGeneratorForm({ onSubmit, onBulkSubmit, isGenerating, ini
       }
       // Auto-match blog tag to category when category changes + persist to localStorage
       if (field === 'category') {
-        const categoryToTag: Record<string, ShopifyBlogTag> = {
-          'sensory-deprivation-tanks': 'sensory-deprivation-tanks',
-          'saunas': 'saunas',
-          'cold-plunge': 'cold-plunge',
-          'red-light-therapy': 'red-light-therapy',
-          'hyperbaric-chambers': 'hyperbaric-chambers',
-          'massage-equipment': 'massage-equipment',
-          'recovery-tools': 'recovery',
-          'general-wellness': 'wellness',
-          'steam': 'steam',
+        const categoryToTag: Record<string, string> = {
+          'protein-powder': 'protein',
+          'whey-protein': 'protein',
+          'vegan-protein-powder': 'protein',
+          'collagen-peptides': 'wellness',
+          'overnight-oats': 'recipes',
+          'improve-performance-recovery': 'fitness',
+          'supplements': 'supplements',
+          'kids': 'wellness',
+          'creatine': 'supplements',
+          'pre-workout': 'supplements',
+          'post-workout': 'fitness',
+          'bcaa': 'supplements',
+          'general-nutrition': 'news',
         }
-        updated.shopifyBlogTag = categoryToTag[value as string] || 'wellness'
+        updated.shopifyBlogTag = categoryToTag[value as string] || 'news'
         try {
-          localStorage.setItem('ppw-sticky-category', value as string)
-          localStorage.setItem('ppw-sticky-blogtag', updated.shopifyBlogTag)
+          localStorage.setItem('nn-sticky-category', value as string)
+          localStorage.setItem('nn-sticky-blogtag', updated.shopifyBlogTag)
         } catch {}
       }
       return updated
@@ -193,7 +208,7 @@ export function ArticleGeneratorForm({ onSubmit, onBulkSubmit, isGenerating, ini
               <Label htmlFor="title">Article Title</Label>
               <Input
                 id="title"
-                placeholder="e.g., The Complete Guide to Cold Plunge Benefits"
+                placeholder="e.g., The Complete Guide to Whey Protein Powder"
                 value={formData.title}
                 onChange={(e) => updateField('title', e.target.value)}
                 required
@@ -204,7 +219,7 @@ export function ArticleGeneratorForm({ onSubmit, onBulkSubmit, isGenerating, ini
               <Label htmlFor="keyword">Target Keyword</Label>
               <Input
                 id="keyword"
-                placeholder="e.g., cold plunge benefits"
+                placeholder="e.g., best whey protein powder"
                 value={formData.keyword}
                 onChange={(e) => updateField('keyword', e.target.value)}
                 required
@@ -219,7 +234,7 @@ export function ArticleGeneratorForm({ onSubmit, onBulkSubmit, isGenerating, ini
               <Label htmlFor="category">Category</Label>
               <Select
                 value={formData.category}
-                onValueChange={(v) => updateField('category', v as WellnessCategory)}
+                onValueChange={(v) => updateField('category', v as NNCategory)}
                 disabled={isGenerating}
               >
                 <SelectTrigger id="category">
@@ -298,8 +313,8 @@ export function ArticleGeneratorForm({ onSubmit, onBulkSubmit, isGenerating, ini
               <div className="space-y-2">
                 <Label htmlFor="shopifyBlogTag">Blog Tag</Label>
                 <Select
-                  value={formData.shopifyBlogTag || 'wellness'}
-                  onValueChange={(v) => updateField('shopifyBlogTag', v as ShopifyBlogTag)}
+                  value={formData.shopifyBlogTag || 'news'}
+                  onValueChange={(v) => updateField('shopifyBlogTag', v as string)}
                   disabled={isGenerating}
                 >
                   <SelectTrigger id="shopifyBlogTag">

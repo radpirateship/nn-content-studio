@@ -86,13 +86,13 @@ type WorkshopMode = 'single' | 'queue'
 // CATEGORY CONSTANTS
 // ============================================================================
 
-const PARENT_CATEGORIES = ['Saunas', 'Recovery', 'Fitness', 'Wellness'] as const
+const PARENT_CATEGORIES = ['Protein', 'Supplements', 'Performance', 'Nutrition'] as const
 
 const SUBCATEGORIES: Record<string, string[]> = {
-  Saunas: ['All', 'Barrel Saunas', 'Infrared Saunas', 'Traditional Saunas', 'Outdoor Saunas', 'Sauna Heaters', 'Sauna Accessories', 'Steam'],
-  Recovery: ['All', 'Cold Plunges', 'Red Light Therapy', 'Massage Equipment', 'Compression Boots', 'Recovery Tools'],
-  Fitness: ['All', 'Treadmills', 'Elliptical Machines', 'Exercise Bikes', 'Stair Climbers', 'Vertical Climbers', 'Pilates'],
-  Wellness: ['All', 'Hyperbaric Chambers', 'Hydrogen Water', 'Water Ionizers', 'Sensory Deprivation Tanks', 'Air Filters', 'General Wellness'],
+  Protein: ['All', 'Whey Protein', 'Vegan Protein', 'Collagen Peptides', 'Protein Powder'],
+  Supplements: ['All', 'Creatine', 'BCAAs', 'Greens', 'Vitamins', 'Probiotics', 'Energy'],
+  Performance: ['All', 'Pre-Workout', 'Post-Workout', 'Recovery'],
+  Nutrition: ['All', 'Overnight Oats', 'Weight Management', 'Keto', 'Kids', 'General Nutrition'],
 }
 
 const ARTICLE_TYPES = [
@@ -259,8 +259,8 @@ export function ArticleWorkshopView() {
       {
         label: 'Category Tag',
         key: 'category',
-        pass: ['Saunas', 'Recovery', 'Fitness', 'Wellness'].some(c => tags.includes(c)),
-        detail: ['Saunas', 'Recovery', 'Fitness', 'Wellness'].find(c => tags.includes(c)) || 'Missing',
+        pass: ['Protein', 'Supplements', 'Performance', 'Nutrition'].some(c => tags.includes(c)),
+        detail: ['Protein', 'Supplements', 'Performance', 'Nutrition'].find(c => tags.includes(c)) || 'Missing',
       },
     ]
 
@@ -408,7 +408,7 @@ export function ArticleWorkshopView() {
       
       // Get category from tags
       const tags = (pendingChanges.tags || loadedArticle.tags || '').split(',').map(t => t.trim())
-      const category = tags.find(t => ['Saunas', 'Recovery', 'Fitness', 'Wellness'].includes(t)) || 'Wellness'
+      const category = tags.find(t => ['Protein', 'Supplements', 'Performance', 'Nutrition'].includes(t)) || 'Nutrition'
 
       // First draft a featured image prompt via the AI endpoint
       const conceptRes = await fetch('/api/articles/draft-image-prompts', {
@@ -478,7 +478,7 @@ export function ArticleWorkshopView() {
       const title = loadedArticle.title
       let currentBody = pendingChanges.body_html || loadedArticle.body_html || ''
       const tags = (pendingChanges.tags || loadedArticle.tags || '').split(',').map(t => t.trim())
-      const category = tags.find(t => ['Saunas', 'Recovery', 'Fitness', 'Wellness'].includes(t)) || 'Wellness'
+      const category = tags.find(t => ['Protein', 'Supplements', 'Performance', 'Nutrition'].includes(t)) || 'Nutrition'
 
       // Step 1: Draft image concepts
       const conceptRes = await fetch('/api/articles/draft-image-prompts', {

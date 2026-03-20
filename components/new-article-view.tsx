@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { Search, Zap, BookOpen } from 'lucide-react'
-import type { ArticleInput, ArticleTone, ShopifyBlogTag } from '@/lib/types'
+import type { ArticleInput, ArticleTone } from '@/lib/types'
+// ShopifyBlogTag is now just a string type
 
 /* ââ Options matching wireframe exactly ââ */
 const ARTICLE_TYPES = [
@@ -77,7 +78,7 @@ export function NewArticleView({ onGenerate, isGenerating }: NewArticleViewProps
     audience: 'general',
     wordCount: 2250,
     shopifySlug: '',
-    shopifyBlogTag: 'wellness' as ShopifyBlogTag,
+    shopifyBlogTag: 'news',
     titleTag: '',
     metaDescription: '',
     specialInstructions: '',

@@ -71,7 +71,7 @@ export function PublishConfirmView({ article, onBackToEditor, onNewArticle, onVi
 
       const result = await response.json()
       const returnedUrl = result.article?.url
-      const fallbackUrl = `https://nakednutrition.com/blogs/wellness/${result.article?.handle || article.slug || 'article'}`
+      const fallbackUrl = `https://nakednutrition.com/blogs/news/${result.article?.handle || article.slug || 'article'}`
       setShopifyUrl(returnedUrl || fallbackUrl)
       setPublishedAt(new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }))
       setPhase('success')
@@ -82,11 +82,11 @@ export function PublishConfirmView({ article, onBackToEditor, onNewArticle, onVi
     }
   }
 
-  const liveUrl = shopifyUrl || `https://nakednutrition.com/blogs/wellness/${article.slug}`
+  const liveUrl = shopifyUrl || `https://nakednutrition.com/blogs/news/${article.slug}`
 
   const detailRows = [
     { label: 'Title', value: article.title },
-    { label: 'URL', value: `/blogs/wellness/${article.slug}`, href: liveUrl },
+    { label: 'URL', value: `/blogs/news/${article.slug}`, href: liveUrl },
     { label: 'Category', value: article.category?.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) },
     { label: 'Word Count', value: article.wordCount?.toLocaleString() || '--' },
     ...(publishedAt ? [{ label: 'Published', value: publishedAt }] : []),

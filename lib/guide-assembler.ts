@@ -417,7 +417,7 @@ function buildInternalLinksGrid(
   if (links.length === 0) return ''
 
   const cards = links.map(l => {
-    const href = l.slug ? `/blogs/wellness/${l.slug}` : (l.url || '#')
+    const href = l.slug ? `/blogs/news/${l.slug}` : (l.url || '#')
     const title = l.title || l.anchor || href
     return `<a class="link-card" href="${href}">
   <h3>${title}</h3>
@@ -538,8 +538,8 @@ export function assembleCompleteGuideHtml(
   const topicShortPlural = guide.topic_short_plural || `${topicShort}s`
   const topicFull       = guide.topic_full || topicShort
   const slug            = guide.slug
-  const breadcrumbL2Name = guide.breadcrumb_l2_name || 'Wellness'
-  const breadcrumbL2Slug = guide.breadcrumb_l2_slug || 'wellness'
+  const breadcrumbL2Name = guide.breadcrumb_l2_name || 'Nutrition'
+  const breadcrumbL2Slug = guide.breadcrumb_l2_slug || 'nutrition'
   const collectionSlug  = guide.collection_slug || slug
   const heroImageUrl    = guide.hero_image_cdn_url || guide.hero_image_url || ''
   const readTime        = guide.read_time_mins || 15

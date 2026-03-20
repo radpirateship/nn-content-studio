@@ -211,8 +211,8 @@ export function GuidePublishConfirm({
             </div>
           )}
           {phase === 'pre-publish' && (
-            <div className="flex h-16 w-16 items-center justify-center rounded-full" style={{ background: 'var(--ppw-accent-light)' }}>
-              <Globe className="h-8 w-8" style={{ color: 'var(--ppw-accent)' }} />
+            <div className="flex h-16 w-16 items-center justify-center rounded-full" style={{ background: 'var(--nn-accent-light)' }}>
+              <Globe className="h-8 w-8" style={{ color: 'var(--nn-accent)' }} />
             </div>
           )}
         </div>
@@ -244,7 +244,7 @@ export function GuidePublishConfirm({
                   target="_blank"
                   rel="noopener"
                   className="text-[12px] font-mono flex items-center gap-1 hover:underline"
-                  style={{ color: 'var(--ppw-accent)' }}
+                  style={{ color: 'var(--nn-accent)' }}
                 >
                   {row.value} <ExternalLink className="h-3 w-3" />
                 </a>
@@ -343,7 +343,7 @@ export function GuidePublishConfirm({
               <Button
                 onClick={handlePublish}
                 className="w-full gap-2"
-                style={{ background: 'var(--ppw-accent)', color: '#fff' }}
+                style={{ background: 'var(--nn-accent)', color: '#fff' }}
               >
                 <Globe className="h-4 w-4" />
                 Publish to Shopify
@@ -367,7 +367,7 @@ export function GuidePublishConfirm({
                 target="_blank"
                 rel="noopener"
                 className="flex w-full items-center justify-center gap-2 rounded-md px-4 py-2.5 text-[13px] font-semibold transition-colors"
-                style={{ background: 'var(--ppw-accent)', color: '#fff', textDecoration: 'none' }}
+                style={{ background: 'var(--nn-accent)', color: '#fff', textDecoration: 'none' }}
               >
                 <ExternalLink className="h-4 w-4" /> View Live Guide
               </a>
@@ -387,7 +387,7 @@ export function GuidePublishConfirm({
               <Button
                 onClick={handlePublish}
                 className="w-full gap-2"
-                style={{ background: 'var(--ppw-accent)', color: '#fff' }}
+                style={{ background: 'var(--nn-accent)', color: '#fff' }}
               >
                 Try Again
               </Button>

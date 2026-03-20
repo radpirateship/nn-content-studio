@@ -3,7 +3,8 @@
 import { useState, useCallback } from 'react'
 import { Zap, Loader2, Check, Circle, AlertCircle, FileText, Link2, ImageIcon, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import type { ArticleInput, GeneratedArticle, Product, WellnessCategory } from '@/lib/types'
+import type { ArticleInput, GeneratedArticle, Product } from '@/lib/types'
+import type { NNCategory } from '@/lib/nn-categories'
 import type { ImageModel } from '@/lib/imageGeneration'
 
 type AutoStep = 'idle' | 'content' | 'links' | 'images' | 'done' | 'error'
@@ -58,23 +59,14 @@ export function AutoRunView({
 
     // Map collection to category
     const collectionToCategory: Record<string, string> = {
-      'Hydrogen Water': 'hydrogen-water', 'Water Ionizers': 'water-ionizers',
-      'Hyperbaric Chambers': 'hyperbaric-chambers', 'Red Light Therapy': 'red-light-therapy',
-      'Cold Plunges': 'cold-plunges', 'Pilates': 'pilates',
-      'Infrared Saunas': 'saunas', 'Saunas': 'saunas', 'Barrel Saunas': 'barrel-saunas', 'Sauna Heaters': 'sauna-heaters',
-      'Massage Equipment': 'massage-equipment', 'Massage Chairs': 'massage-equipment', 'Massage': 'massage-equipment',
-      'Compression Boots': 'compression-boots',
-      'Sensory Deprivation Tanks': 'sensory-deprivation-tanks',
-      'Sauna Accessories': 'sauna-accessories',
-      'Steam': 'steam',
-      'Elliptical Machines': 'elliptical-machines',
-      'Exercise Bikes': 'exercise-bikes',
-      'Treadmills': 'treadmills',
-      'Stair Climbers': 'stair-climbers',
-      'Vertical Climbers': 'vertical-climbers',
-      'Air Filters': 'air-filters',
+      'Protein Powder': 'protein-powder', 'Whey Protein': 'whey-protein',
+      'Vegan Protein Powder': 'vegan-protein-powder',
+      'Collagen Peptides': 'collagen-peptides',
+      'Overnight Oats': 'overnight-oats',
+      'Performance & Recovery': 'improve-performance-recovery',
+      'Supplements': 'supplements', 'Kids': 'kids',
     }
-    const category = collectionToCategory[formData.collection] || 'general-wellness'
+    const category = collectionToCategory[formData.collection] || 'general-nutrition'
 
     try {
       // ââ Step 1: Generate outline ââ
@@ -172,7 +164,7 @@ export function AutoRunView({
         faqs: outline?.faq?.map((f: { question: string; briefAnswer: string }) => ({
           question: f.question, answer: f.briefAnswer,
         })) || [],
-        schemaMarkup: '', category: category as WellnessCategory, keyword: formData.keyword,
+        schemaMarkup: '', category: category as NNCategory, keyword: formData.keyword,
         wordCount, createdAt: new Date(), status: 'draft',
         hasInternalLinks: false, hasImages: false, linkCount: 0, imageCount: 0,
       }
@@ -292,7 +284,7 @@ export function AutoRunView({
                   type="text"
                   value={formData.title}
                   onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="e.g., Best Infrared Saunas for Home Use"
+                  placeholder="e.g., Best Whey Protein Powder for Muscle Gain"
                   className="w-full rounded-md border px-3 py-[9px] text-[13px] outline-none"
                   style={{ background: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text1)' }}
                 />
@@ -306,7 +298,7 @@ export function AutoRunView({
                     type="text"
                     value={formData.keyword}
                     onChange={e => setFormData(prev => ({ ...prev, keyword: e.target.value }))}
-                    placeholder="best infrared saunas"
+                    placeholder="best whey protein powder"
                     className="w-full rounded-md border px-3 py-[9px] text-[13px] outline-none"
                     style={{ background: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text1)' }}
                   />
@@ -322,27 +314,14 @@ export function AutoRunView({
                     style={{ background: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text1)' }}
                   >
                     <option value="">-- Select --</option>
-                    <option value="Saunas">Saunas</option>
-                    <option value="Infrared Saunas">Infrared Saunas</option>
-                    <option value="Barrel Saunas">Barrel Saunas</option>
-                    <option value="Sauna Heaters">Sauna Heaters</option>
-                    <option value="Sauna Accessories">Sauna Accessories</option>
-                    <option value="Cold Plunges">Cold Plunges</option>
-                    <option value="Red Light Therapy">Red Light Therapy</option>
-                    <option value="Steam">Steam</option>
-                    <option value="Hyperbaric Chambers">Hyperbaric Chambers</option>
-                    <option value="Hydrogen Water">Hydrogen Water</option>
-                    <option value="Water Ionizers">Water Ionizers</option>
-                    <option value="Sensory Deprivation Tanks">Sensory Deprivation Tanks</option>
-                    <option value="Massage Equipment">Massage Equipment</option>
-                    <option value="Compression Boots">Compression Boots</option>
-                    <option value="Elliptical Machines">Elliptical Machines</option>
-                    <option value="Exercise Bikes">Exercise Bikes</option>
-                    <option value="Treadmills">Treadmills</option>
-                    <option value="Stair Climbers">Stair Climbers</option>
-                    <option value="Vertical Climbers">Vertical Climbers</option>
-                    <option value="Pilates">Pilates</option>
-                    <option value="Air Filters">Air Filters</option>
+                    <option value="Protein Powder">Protein Powder</option>
+                    <option value="Whey Protein">Whey Protein</option>
+                    <option value="Vegan Protein Powder">Vegan Protein Powder</option>
+                    <option value="Collagen Peptides">Collagen Peptides</option>
+                    <option value="Overnight Oats">Overnight Oats</option>
+                    <option value="Performance & Recovery">Performance & Recovery</option>
+                    <option value="Supplements">Supplements</option>
+                    <option value="Kids">Kids</option>
                   </select>
                 </div>
               </div>

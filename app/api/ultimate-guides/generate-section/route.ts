@@ -21,9 +21,9 @@ export type SectionId =
 // Shared context passed to every section generator
 interface SectionContext {
   guideTitle: string
-  topicShort: string       // e.g. "Cold Plunge"
-  topicShortPlural: string // e.g. "Cold Plunges"
-  topicFull: string        // e.g. "Cold Plunge Therapy"
+  topicShort: string       // e.g. "Whey Protein"
+  topicShortPlural: string // e.g. "Whey Proteins"
+  topicFull: string        // e.g. "Whey Protein Powder"
   year: number
   products: Array<{
     title: string

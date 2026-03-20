@@ -12,6 +12,7 @@ export interface ArticleInput {
   includeFAQ?: boolean
   includeSchema?: boolean
   shopifySlug?: string
+  shopifyBlogTag?: string
   // New wireframe fields
   articleType?: string
   audience?: string
@@ -71,6 +72,7 @@ export interface GeneratedArticle {
   linkCount?: number
   imageCount?: number
   // Shopify integration
+  shopifyBlogTag?: string
   sourceType?: 'new' | 'revamp'
   originalShopifyId?: number
 }

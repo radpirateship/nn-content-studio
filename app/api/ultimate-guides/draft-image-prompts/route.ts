@@ -90,7 +90,7 @@ RULES:
 OUTPUT: Return ONLY a valid JSON array with one object per eligible section (hero + all technical). No markdown fences. No explanation.
 Each object:
 {
-  "label": "Short label e.g. 'Hero: Cold Plunge Lifestyle' or 'Figure 1: Vasoconstriction Mechanism'",
+  "label": "Short label e.g. 'Hero: Protein Powder Lifestyle' or 'Figure 1: Amino Acid Absorption'",
   "prompt": "Detailed image description 80-150 words — NO style instructions, those are added separately",
   "altText": "SEO-friendly alt text 10-20 words, specific to content",
   "type": "featured" or "technical",

@@ -73,9 +73,9 @@ export async function PUT(request: NextRequest) {
       const blogs = blogsData.blogs || [];
       const blog = blogs.find(
         (b: { handle: string }) =>
+          b.handle === "news" ||
           b.handle === "wellness" ||
-          b.handle === "wellness-hub" ||
-          b.handle === "news"
+          b.handle === "protein"
       );
       targetBlogId = blog?.id || blogs[0]?.id;
 

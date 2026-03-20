@@ -190,7 +190,7 @@ export function GuideReview({ guide, onBack, onPublish }: GuideReviewProps) {
         <Button
           onClick={onPublish}
           className="ml-auto gap-2"
-          style={{ background: 'var(--ppw-accent)', color: '#fff' }}
+          style={{ background: 'var(--nn-accent)', color: '#fff' }}
         >
           Continue to Publish <ChevronRight className="h-4 w-4" />
         </Button>

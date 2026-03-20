@@ -1173,7 +1173,7 @@ export function GuideContentGenerator({ guide, onSave, onBack }: GuideContentGen
             onClick={handleSave}
             disabled={isSaving}
             className="ml-auto gap-2"
-            style={{ background: 'var(--ppw-accent)', color: '#fff' }}
+            style={{ background: 'var(--nn-accent)', color: '#fff' }}
           >
             {isSaving ? (
               <>

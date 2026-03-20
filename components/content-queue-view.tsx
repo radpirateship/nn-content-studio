@@ -30,10 +30,13 @@ const COLUMNS: { id: QueueStatus; label: string; dotColor: string; borderColor: 
 ]
 
 const CATEGORY_LABELS: Record<string, string> = {
-  'saunas': 'Saunas', 'cold-plunge': 'Cold Plunge', 'red-light-therapy': 'RLT',
-  'sensory-deprivation-tanks': 'Sensory Deprivation Tanks', 'hyperbaric-chambers': 'Hyperbaric',
-  'massage-equipment': 'Massage Equipment', 'compression-boots': 'Compression Boots',
-  'general-wellness': 'Wellness', 'recovery-tools': 'Recovery', 'steam': 'Steam', 'air-filters': 'Air Filters',
+  'protein-powder': 'Protein', 'whey-protein': 'Whey', 'vegan-protein-powder': 'Vegan Protein',
+  'collagen-peptides': 'Collagen', 'overnight-oats': 'Oats',
+  'improve-performance-recovery': 'Performance', 'supplements': 'Supplements', 'kids': 'Kids',
+  'creatine': 'Creatine', 'pre-workout': 'Pre-Workout', 'post-workout': 'Post-Workout',
+  'bcaa': 'BCAAs', 'greens': 'Greens', 'vitamins': 'Vitamins', 'probiotics': 'Probiotics',
+  'energy': 'Energy', 'weight-management': 'Weight Mgmt', 'keto': 'Keto', 'vegan': 'Vegan',
+  'general-nutrition': 'Nutrition',
 }
 
 const TYPE_LABELS: Record<string, string> = {

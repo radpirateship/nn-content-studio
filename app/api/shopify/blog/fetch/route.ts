@@ -61,9 +61,9 @@ export async function GET(request: NextRequest) {
     const blogs = blogsData.blogs || [];
     const blog = blogs.find(
       (b: { handle: string }) =>
+        b.handle === "news" ||
         b.handle === "wellness" ||
-        b.handle === "wellness-hub" ||
-        b.handle === "news"
+        b.handle === "protein"
     );
     const blogId = blog?.id || blogs[0]?.id;
 

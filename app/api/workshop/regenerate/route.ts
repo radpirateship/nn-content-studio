@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { callAI } from "@/lib/ai";
-import { CATEGORY_LABELS, type WellnessCategory } from "@/lib/types";
+import { CATEGORY_LABELS, type NNCategory } from "@/lib/nn-categories";
 
 export const maxDuration = 120;
 
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     const category = article.category || detectCategory(article.tags || "");
-    const categoryLabel = CATEGORY_LABELS[category as WellnessCategory] || category || "Wellness";
+    const categoryLabel = CATEGORY_LABELS[category as NNCategory] || category || "Nutrition";
 
     switch (section) {
       case "faq":
@@ -210,9 +210,8 @@ async function regenerateLinks(
   // Delegate to the existing add-links API internally
   // First, fetch internal links from topical authority
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000";
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
     const taUrl = category
       ? `${baseUrl}/api/resources?type=topical-authority&collection=${encodeURIComponent(category)}`
@@ -284,9 +283,8 @@ async function regenerateProducts(
 ) {
   // Fetch products for this category via existing products API
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000";
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
     const searchParam = encodeURIComponent(article.title);
     const productsResponse = await fetch(
@@ -537,24 +535,30 @@ ${featureBullets}
 function detectCategory(tags: string): string {
   const tagsLower = tags.toLowerCase();
   const categoryMap: [string, string][] = [
-    ["vertical climber", "vertical-climbers"],
-    ["stair climber", "stair-climbers"],
-    ["elliptical", "elliptical-machines"],
-    ["exercise bike", "exercise-bikes"],
-    ["treadmill", "treadmills"],
-    ["pilates", "pilates"],
-    ["cold plunge", "cold-plunge"],
-    ["ice bath", "cold-plunge"],
-    ["red light", "red-light-therapy"],
-    ["hyperbaric", "hyperbaric-chambers"],
-    ["hydrogen water", "hydrogen-water"],
-    ["float", "sensory-deprivation-tanks"],
-    ["sensory deprivation", "sensory-deprivation-tanks"],
-    ["massage", "massage-equipment"],
-    ["recovery", "recovery-tools"],
-    ["steam", "steam"],
-    ["barrel sauna", "barrel-saunas"],
-    ["sauna", "saunas"],
+    ["whey protein", "whey-protein"],
+    ["casein protein", "protein-powder"],
+    ["pea protein", "vegan-protein-powder"],
+    ["vegan protein", "vegan-protein-powder"],
+    ["plant protein", "vegan-protein-powder"],
+    ["protein powder", "protein-powder"],
+    ["protein", "protein-powder"],
+    ["collagen", "collagen-peptides"],
+    ["overnight oats", "overnight-oats"],
+    ["oats", "overnight-oats"],
+    ["creatine", "supplements"],
+    ["pre-workout", "improve-performance-recovery"],
+    ["pre workout", "improve-performance-recovery"],
+    ["post-workout", "improve-performance-recovery"],
+    ["bcaa", "supplements"],
+    ["greens", "supplements"],
+    ["vitamins", "supplements"],
+    ["probiotics", "supplements"],
+    ["energy", "supplements"],
+    ["weight management", "supplements"],
+    ["keto", "supplements"],
+    ["kids", "kids"],
+    ["recovery", "improve-performance-recovery"],
+    ["performance", "improve-performance-recovery"],
   ];
 
   for (const [keyword, cat] of categoryMap) {
@@ -562,10 +566,9 @@ function detectCategory(tags: string): string {
   }
 
   // Check parent categories
-  if (tagsLower.includes("fitness")) return "general-wellness";
-  if (tagsLower.includes("wellness")) return "general-wellness";
-  if (tagsLower.includes("saunas")) return "saunas";
-  if (tagsLower.includes("recovery")) return "recovery-tools";
+  if (tagsLower.includes("fitness")) return "improve-performance-recovery";
+  if (tagsLower.includes("nutrition")) return "general-nutrition";
+  if (tagsLower.includes("supplement")) return "supplements";
 
-  return "general-wellness";
+  return "general-nutrition";
 }
