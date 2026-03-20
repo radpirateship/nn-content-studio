@@ -181,7 +181,7 @@ async function uploadBufferToShopify(
   for (const param of target.parameters) {
     formData.append(param.name, param.value);
   }
-  const fileBlob = new Blob([imageBuffer], { type: mimeType });
+  const fileBlob = new Blob([new Uint8Array(imageBuffer)], { type: mimeType });
   formData.append("file", fileBlob, fileName);
 
   const uploadRes = await fetch(target.url, {

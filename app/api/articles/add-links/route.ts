@@ -118,11 +118,12 @@ ${bodyContent}`;
     const enrichedHTML = beforeBody + linkedBody + '\n' + afterBody;
 
     // Update database if articleId provided
+    let dbSaved = true;
     if (articleId) {
       try {
         const sql = getSQL();
         await sql`
-          UPDATE articles 
+          UPDATE articles
           SET html_content = ${enrichedHTML},
               has_internal_links = true,
               link_count = ${linkCount},
@@ -131,18 +132,21 @@ ${bodyContent}`;
         `;
       } catch (dbError) {
         console.error("Failed to update article in DB:", dbError);
+        dbSaved = false;
       }
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       htmlContent: enrichedHTML,
       linkCount,
-      success: true 
+      success: true,
+      ...(dbSaved === false && { warning: "Links were added to the HTML but the database update failed. Your changes may not persist after refresh." }),
     });
   } catch (error) {
-    console.error("[add-links] Error:", { articleId, linkCount: approvedLinks?.length ?? 0, error });
+    console.error("[add-links] Error:", error);
+    const message = error instanceof Error ? error.message : "Failed to add links";
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to add links" },
+      { error: message, detail: "The AI link injection step failed. Check that your article HTML is valid and try again." },
       { status: 500 }
     );
   }

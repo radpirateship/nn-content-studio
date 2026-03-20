@@ -306,7 +306,7 @@ export function ContentResourcesManager({
         const regData = await regRes.json()
         if (regData.collections) setAllCollections(regData.collections)
       }
-      setCollections(parsed.map((c, i) => ({ id: `col-${i}`, primaryKeyword: c.label, url: c.url, category: c.slug })))
+      setCollections(parsed.map((c, i) => ({ id: `col-${i}`, primaryKeyword: c.label, url: c.url, category: c.slug, searchVolume: '', keywordDifficulty: '', secondaryKeywords: [], optimizedTitleTag: '', optimizedMetaDescription: '', currentPosition: '', currentImpressions: '', priority: '', estimatedImpact: '', optimizedEC: false })))
       onCollectionsLoaded?.(parsed.length)
       fetchSummary()
     } catch (error) {

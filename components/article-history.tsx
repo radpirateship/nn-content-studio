@@ -26,6 +26,7 @@ type FilterStatus = 'all' | 'draft' | 'published'
 export function ArticleHistory({ articles, onSelect, onDelete, onStatusChange }: ArticleHistoryProps) {
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
+  const [filterCategory, setFilterCategory] = useState<string>('all')
 
   const stats = useMemo(() => ({
     total: articles.length,
@@ -33,10 +34,17 @@ export function ArticleHistory({ articles, onSelect, onDelete, onStatusChange }:
     published: articles.filter(a => a.status === 'published').length,
   }), [articles])
 
+  // Extract unique categories from articles for the filter dropdown
+  const categories = useMemo(() => {
+    const cats = new Set(articles.map(a => a.category).filter(Boolean))
+    return Array.from(cats).sort()
+  }, [articles])
+
   const filtered = useMemo(() => {
     let list = articles
     if (filterStatus === 'draft') list = list.filter(a => a.status !== 'published')
     if (filterStatus === 'published') list = list.filter(a => a.status === 'published')
+    if (filterCategory !== 'all') list = list.filter(a => a.category === filterCategory)
     if (search.trim()) {
       const q = search.toLowerCase()
       list = list.filter(a =>
@@ -46,7 +54,7 @@ export function ArticleHistory({ articles, onSelect, onDelete, onStatusChange }:
       )
     }
     return list
-  }, [articles, filterStatus, search])
+  }, [articles, filterStatus, filterCategory, search])
 
   return (
     <div className="flex h-full flex-col">
@@ -97,6 +105,39 @@ export function ArticleHistory({ articles, onSelect, onDelete, onStatusChange }:
             {s === 'all' ? 'All' : s === 'draft' ? 'Drafts' : 'Published'}
           </button>
         ))}
+        {categories.length > 1 && (
+          <>
+            <span className="mx-1 h-4 w-px" style={{ background: 'var(--border)' }} />
+            <span className="text-[11px] font-bold uppercase tracking-[0.4px] font-mono" style={{ color: 'var(--text4)' }}>
+              Category
+            </span>
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="rounded-md px-2 py-1 text-[12px] font-medium border-none outline-none cursor-pointer"
+              style={{
+                background: filterCategory !== 'all' ? 'var(--nn-accent-light)' : 'var(--surface)',
+                color: filterCategory !== 'all' ? 'var(--nn-accent)' : 'var(--text3)',
+              }}
+            >
+              <option value="all">All</option>
+              {categories.map(cat => (
+                <option key={cat} value={cat}>
+                  {CATEGORY_LABELS[cat as keyof typeof CATEGORY_LABELS] || cat}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+        {(filterStatus !== 'all' || filterCategory !== 'all' || search) && (
+          <button
+            onClick={() => { setFilterStatus('all'); setFilterCategory('all'); setSearch('') }}
+            className="ml-1 rounded-md px-2 py-1 text-[11px] font-medium transition-all hover:opacity-80"
+            style={{ color: 'var(--text4)' }}
+          >
+            Clear filters
+          </button>
+        )}
       </div>
 
       {/* Articles grid */}

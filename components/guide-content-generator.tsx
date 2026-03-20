@@ -382,7 +382,7 @@ export function GuideContentGenerator({ guide, onSave, onBack }: GuideContentGen
   const [isDraftingMeta, setIsDraftingMeta] = useState(false)
   const [versions, setVersions] = useState<VersionMap>(() => {
     // Load persisted versions from guide data
-    const saved = (guide as Record<string, unknown>).section_versions as VersionMap | undefined
+    const saved = (guide as unknown as Record<string, unknown>).section_versions as VersionMap | undefined
     return saved && typeof saved === 'object' ? saved : {}
   })
   const [showPreview, setShowPreview] = useState(false)
@@ -445,7 +445,7 @@ export function GuideContentGenerator({ guide, onSave, onBack }: GuideContentGen
                 anchor: (r.anchor as string) || (r.title as string) || (r.primaryKeyword as string) || '',
               }
             })
-            .filter(l => l.slug || l.url)
+            .filter((l: ClusterLink) => l.slug || l.url)
           setClusterLinks(links)
           console.log(`Loaded ${links.length} cluster links for guide`)
         }
@@ -724,7 +724,7 @@ export function GuideContentGenerator({ guide, onSave, onBack }: GuideContentGen
       introHtml?: string
     ) => {
       setSelectedProductResults(
-        selectedWithDetails.map(p => ({ handle: p.handle, role: p.selected_subcategory, reason: '' }))
+        selectedWithDetails.map(p => ({ handle: p.handle, role: p.selected_subcategory || '', reason: '' }))
       )
       setProductSelectionDone(true)
 

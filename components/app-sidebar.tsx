@@ -1,6 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
+import { useState, useEffect } from 'react'
 import {
   FilePlus,
   FolderOpen,
@@ -21,6 +22,9 @@ import {
   FileCode,
   Plug,
   ScrollText,
+  PanelLeftClose,
+  PanelLeft,
+  Menu,
 } from 'lucide-react'
 
 export type ViewId =
@@ -75,6 +79,8 @@ interface AppSidebarProps {
     seo?: string
     seoVariant?: 'green' | 'grey' | 'amber'
   }
+  collapsed?: boolean
+  onToggleCollapse?: () => void
 }
 
 export function AppSidebar({
@@ -85,6 +91,8 @@ export function AppSidebar({
   hasCurrentArticle,
   currentArticleTitle: _currentArticleTitle,
   articleBadges,
+  collapsed = false,
+  onToggleCollapse,
 }: AppSidebarProps) {
   const revampItems: NavItem[] = [
     { id: 'revamp-input', label: 'Revamp Article', icon: <RefreshCw className="h-[18px] w-[18px]" /> },
@@ -122,8 +130,10 @@ export function AppSidebar({
       <button
         key={item.id}
         onClick={() => onNavigate(item.id)}
+        title={collapsed ? item.label : undefined}
         className={cn(
-          'flex w-full items-center gap-2.5 border-l-[2.5px] px-4 py-[7px] text-[13px] transition-all select-none',
+          'flex w-full items-center border-l-[2.5px] transition-all select-none',
+          collapsed ? 'justify-center px-0 py-2' : 'gap-2.5 px-4 py-[7px] text-[13px]',
           isActive
             ? 'font-semibold'
             : 'border-transparent font-normal hover:bg-[var(--surface)]'
@@ -137,8 +147,8 @@ export function AppSidebar({
         <span className={cn('w-[18px] text-center flex-shrink-0', isActive ? 'opacity-100' : 'opacity-75')}>
           {item.icon}
         </span>
-        <span className="flex-1 text-left">{item.label}</span>
-        {item.badge && (
+        {!collapsed && <span className="flex-1 text-left">{item.label}</span>}
+        {!collapsed && item.badge && (
           <span
             className="ml-auto rounded-[10px] px-[7px] py-px text-[10px] font-mono font-medium"
             style={{
@@ -154,6 +164,7 @@ export function AppSidebar({
   }
 
   function renderSectionLabel(label: string, icon?: React.ReactNode) {
+    if (collapsed) return <div className="pt-2 pb-1"><div className="mx-auto h-px w-6" style={{ background: 'var(--border)' }} /></div>
     return (
       <div
         className="flex items-center gap-1.5 px-4 pt-3.5 pb-1.5 text-[9px] font-medium tracking-[1.5px] uppercase font-mono"
@@ -166,7 +177,18 @@ export function AppSidebar({
   }
 
   return (
-    <aside className="flex h-full flex-col overflow-y-auto border-r pt-3.5" style={{ background: 'var(--bg-warm)', borderColor: 'var(--border)' }}>
+    <aside className={cn('flex h-full flex-col overflow-y-auto border-r', collapsed ? 'pt-2' : 'pt-3.5')} style={{ background: 'var(--bg-warm)', borderColor: 'var(--border)' }}>
+      {/* Collapse toggle */}
+      {onToggleCollapse && (
+        <button
+          onClick={onToggleCollapse}
+          className="flex items-center justify-center mx-auto mb-1 rounded-md p-1.5 transition-all hover:bg-[var(--surface)]"
+          style={{ color: 'var(--text3)' }}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+        </button>
+      )}
 
       {/* ⭐ Revamp Workflow (Primary) */}
       {renderSectionLabel('Revamp')}
@@ -174,26 +196,26 @@ export function AppSidebar({
 
       {hasCurrentArticle && (
         <>
-          <div className="mx-4 my-2 h-px" style={{ background: 'var(--border)' }} />
+          {!collapsed && <div className="mx-4 my-2 h-px" style={{ background: 'var(--border)' }} />}
           {renderSectionLabel('Current Article')}
           {articleItems.map(renderNavItem)}
         </>
       )}
 
       {/* 📝 Create New */}
-      <div className="mx-4 my-2 h-px" style={{ background: 'var(--border)' }} />
+      {!collapsed && <div className="mx-4 my-2 h-px" style={{ background: 'var(--border)' }} />}
       {renderSectionLabel('Create New')}
       {createItems.map(renderNavItem)}
 
       {/* 📚 Library */}
-      <div className="mx-4 my-2 h-px" style={{ background: 'var(--border)' }} />
+      {!collapsed && <div className="mx-4 my-2 h-px" style={{ background: 'var(--border)' }} />}
       {renderSectionLabel('Library')}
       {libraryItems.map(renderNavItem)}
 
       {/* ⚙️ Workflow Mini-Tracker */}
-      {workflowSteps && workflowSteps.length > 0 && (
+      {!collapsed && workflowSteps && workflowSteps.length > 0 && (
         <>
-          <div className="mx-4 my-2 h-px" style={{ background: 'var(--border)' }} />
+          {!collapsed && <div className="mx-4 my-2 h-px" style={{ background: 'var(--border)' }} />}
           <div className="px-4 py-3">
             <div
               className="mb-2.5 text-[9px] font-mono font-medium tracking-[1.2px] uppercase"

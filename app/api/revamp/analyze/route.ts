@@ -81,7 +81,7 @@ Return ONLY the JSON object, no additional text or markdown fences.`;
     logActivity("Article analysis failed", {
       category: "revamp",
       status: "error",
-      detail: keyword,
+      detail: "Analysis failed",
     });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Analysis failed" },

@@ -378,11 +378,10 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
                           </div>
                           <button
                             onClick={() => revampBlogPost(post)}
-                            disabled={isFetchingFromBlog}
                             className="px-2.5 py-1 rounded text-[11px] font-medium text-white transition-all flex-shrink-0"
-                            style={{ background: 'var(--nn-accent)', opacity: isFetchingFromBlog ? 0.7 : 1 }}
+                            style={{ background: 'var(--nn-accent)' }}
                           >
-                            {isFetchingFromBlog ? 'Loading...' : 'Revamp This'}
+                            Revamp This
                           </button>
                         </div>
 

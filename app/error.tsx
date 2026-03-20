@@ -8,32 +8,43 @@ export default function Error({
   reset: () => void
 }) {
   return (
-    <div style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: '600px', margin: '2rem auto' }}>
-      <h2 style={{ color: '#c53030', fontSize: '1.5rem', marginBottom: '1rem' }}>Something went wrong</h2>
-      <pre style={{
-        background: '#f8f8f8',
-        padding: '1rem',
-        borderRadius: '8px',
-        overflow: 'auto',
-        fontSize: '0.85rem',
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-        border: '1px solid #e0e0e0',
-        marginBottom: '1rem',
+    <div style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: '520px', margin: '4rem auto', textAlign: 'center' }}>
+      <div style={{
+        width: 48, height: 48, borderRadius: '50%',
+        background: 'rgba(197,48,48,0.08)', display: 'flex',
+        alignItems: 'center', justifyContent: 'center',
+        margin: '0 auto 1rem',
+        fontSize: '1.5rem',
       }}>
-        {error.message}
-        {error.stack && '\n\n' + error.stack}
-      </pre>
+        !
+      </div>
+      <h2 style={{ color: '#1a1a1a', fontSize: '1.25rem', marginBottom: '0.5rem', fontWeight: 600 }}>
+        Something went wrong
+      </h2>
+      <p style={{
+        color: '#666',
+        fontSize: '0.9rem',
+        lineHeight: 1.5,
+        marginBottom: '1.5rem',
+      }}>
+        {error.message || 'An unexpected error occurred. Please try again.'}
+      </p>
+      {error.digest && (
+        <p style={{ color: '#999', fontSize: '0.75rem', marginBottom: '1rem', fontFamily: 'monospace' }}>
+          Error ID: {error.digest}
+        </p>
+      )}
       <button
         onClick={reset}
         style={{
-          padding: '0.5rem 1.5rem',
+          padding: '0.6rem 1.5rem',
           background: '#00A3FF',
           color: '#fff',
           border: 'none',
-          borderRadius: '6px',
+          borderRadius: '8px',
           cursor: 'pointer',
           fontSize: '0.9rem',
+          fontWeight: 500,
         }}
       >
         Try again

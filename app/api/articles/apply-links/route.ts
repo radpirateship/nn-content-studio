@@ -102,9 +102,10 @@ export async function POST(request: NextRequest) {
       success: true,
     });
   } catch (error) {
-    console.error("[apply-links] Error:", { articleId, linkCount: approvedLinks?.length ?? 0, error });
+    console.error("[apply-links] Error:", error);
+    const message = error instanceof Error ? error.message : "Failed to apply links";
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to apply links" },
+      { error: message, detail: "Could not inject approved links into the article HTML. Try re-scanning for link opportunities." },
       { status: 500 }
     );
   }

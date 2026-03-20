@@ -78,9 +78,10 @@ ${plainText.slice(0, 8000)}`;
 
     return NextResponse.json({ suggestions: normalizedSuggestions, count: normalizedSuggestions.length, success: true });
   } catch (error) {
-    console.error("[scan-links] Error:", { articleTitle, internalLinksCount: internalLinks?.length ?? 0, error });
+    console.error("[scan-links] Error:", error);
+    const message = error instanceof Error ? error.message : "Failed to scan for link opportunities";
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to scan for link opportunities" },
+      { error: message, detail: "The AI link scanner could not analyze this article. Ensure the article has body content and try again." },
       { status: 500 }
     );
   }

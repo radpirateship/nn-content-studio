@@ -255,7 +255,7 @@ export async function POST(request: NextRequest) {
     logActivity("Shopify publish failed", {
       category: "publish",
       status: "error",
-      detail: title,
+      detail: "Publish failed",
     });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to publish article to Shopify" },

@@ -774,7 +774,7 @@ ${faqSchema.length > 0 ? `\n<script type="application/ld+json">\n${faqSchema}\n<
     logActivity("Revamp finalization failed", {
       category: "revamp",
       status: "error",
-      detail: titleTag || "Unknown",
+      detail: "Finalization failed",
     });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to finalize article" },

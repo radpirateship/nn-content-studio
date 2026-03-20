@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import { AppTopbar } from '@/components/app-topbar'
 import { AppSidebar, type ViewId } from '@/components/app-sidebar'
@@ -34,6 +34,7 @@ import type { ArticleInput, ArticleStatus, GeneratedArticle, GenerationStep, Pro
 export default function ContentStudio() {
   // Navigation
   const [activeView, setActiveView] = useState<ViewId>('revamp-input')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   // Core state
   const [articles, setArticles] = useState<GeneratedArticle[]>([])
@@ -165,6 +166,26 @@ export default function ContentStudio() {
       toast.error('Failed to update article in database')
     }
   }
+
+  // Auto-save: debounced save of current article to DB (30s after last change)
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastSavedRef = useRef<string>('')
+  useEffect(() => {
+    if (!currentArticle?.dbId || !currentArticle.htmlContent) return
+    // Create a content fingerprint to detect real changes
+    const fingerprint = `${currentArticle.dbId}-${currentArticle.htmlContent.length}-${currentArticle.wordCount}`
+    if (fingerprint === lastSavedRef.current) return
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    autoSaveTimerRef.current = setTimeout(async () => {
+      try {
+        await updateArticleInDb(currentArticle)
+        lastSavedRef.current = fingerprint
+      } catch {
+        // Silent — manual save still works as fallback
+      }
+    }, 30_000)
+    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current) }
+  }, [currentArticle])
 
   const updateProgress = (step: GenerationStep, progress: number, message: string) => {
     setGenerationStep(step)
@@ -382,7 +403,7 @@ export default function ContentStudio() {
         featuredImage: undefined, contentImages: [],
         products: products.map(p => ({
           ...p,
-          tags: typeof p.tags === 'string' ? p.tags.split(',').map(t => t.trim()) : p.tags || [],
+          tags: typeof p.tags === 'string' ? (p.tags as string).split(',').map((t: string) => t.trim()) : p.tags || [],
           url: p.handle ? `https://nakednutrition.com/products/${p.handle}` : '#',
           isAvailable: true,
         })),
@@ -557,7 +578,7 @@ export default function ContentStudio() {
             linkCount: fullArticle.link_count || 0,
             imageCount: fullArticle.image_count || 0,
             featuredImage: fullArticle.featured_image_url
-              ? { url: fullArticle.featured_image_url, altText: fullArticle.featured_image_alt || article.title }
+              ? { id: `feat-${article.id}`, prompt: '', url: fullArticle.featured_image_url, altText: fullArticle.featured_image_alt || article.title, placement: 'featured' as const }
               : undefined,
           }
           setCurrentArticle(loaded)
@@ -615,7 +636,7 @@ export default function ContentStudio() {
   }
 
   return (
-    <div className="grid h-screen overflow-hidden" style={{ gridTemplateColumns: 'var(--sidebar-w) 1fr', gridTemplateRows: 'var(--header-h) 1fr' }}>
+    <div className="grid h-screen overflow-hidden" style={{ gridTemplateColumns: sidebarCollapsed ? '56px 1fr' : 'var(--sidebar-w) 1fr', gridTemplateRows: 'var(--header-h) 1fr', transition: 'grid-template-columns 0.2s ease' }}>
       {/* Topbar */}
       <div style={{ gridColumn: '1 / -1', gridRow: '1' }}>
         <AppTopbar isGenerating={isGenerating} generationMessage={generationMessage} />
@@ -631,6 +652,8 @@ export default function ContentStudio() {
           hasCurrentArticle={!!currentArticle}
           currentArticleTitle={currentArticle?.title}
           articleBadges={articleBadges}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(prev => !prev)}
         />
       </div>
 
@@ -669,7 +692,7 @@ export default function ContentStudio() {
           <RevampAnalysisView
             analysis={revampAnalysis}
             originalContent={revampOriginalContent}
-            citations={revampCitations}
+            citations={revampCitations.map(c => ({ ...c, title: c.title || c.url }))}
             settings={revampSettings}
             onGenerateComplete={(article: GeneratedArticle) => {
               setCurrentArticle(article)

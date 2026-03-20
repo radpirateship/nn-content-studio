@@ -612,10 +612,11 @@ ${faqSchema}`.trim();
     logActivity("Article generation failed", {
       category: "generation",
       status: "error",
-      detail: title,
+      detail: "Article generation failed",
     });
+    const message = error instanceof Error ? error.message : "Failed to generate content";
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to generate content" },
+      { error: message, detail: "Article generation failed. This could be an AI API issue, a timeout, or an input problem. Check the error message above and try again." },
       { status: 500 }
     );
   }

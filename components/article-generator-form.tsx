@@ -114,9 +114,24 @@ export function ArticleGeneratorForm({ onSubmit, onBulkSubmit, isGenerating, ini
     shopifyBlogTag: getStickyBlogTag(),
   }))
 
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
+
+  const validate = (): Record<string, string> => {
+    const errors: Record<string, string> = {}
+    if (!formData.title.trim()) errors.title = 'Title is required'
+    else if (formData.title.trim().length < 10) errors.title = 'Title should be at least 10 characters'
+    if (!formData.keyword.trim()) errors.keyword = 'Target keyword is required'
+    if (formData.wordCount && (formData.wordCount < 300 || formData.wordCount > 10000)) {
+      errors.wordCount = 'Word count should be between 300 and 10,000'
+    }
+    return errors
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.title || !formData.keyword) return
+    const errors = validate()
+    setValidationErrors(errors)
+    if (Object.keys(errors).length > 0) return
     await onSubmit(formData)
   }
 
@@ -205,26 +220,30 @@ export function ArticleGeneratorForm({ onSubmit, onBulkSubmit, isGenerating, ini
           {/* Title & Keyword */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="title">Article Title</Label>
+              <Label htmlFor="title">Article Title <span style={{ color: '#c44' }}>*</span></Label>
               <Input
                 id="title"
                 placeholder="e.g., The Complete Guide to Whey Protein Powder"
                 value={formData.title}
-                onChange={(e) => updateField('title', e.target.value)}
+                onChange={(e) => { updateField('title', e.target.value); setValidationErrors(prev => { const { title, ...rest } = prev; return rest }) }}
                 required
                 disabled={isGenerating}
+                style={validationErrors.title ? { borderColor: '#c44' } : undefined}
               />
+              {validationErrors.title && <p className="text-[11px] mt-1" style={{ color: '#c44' }}>{validationErrors.title}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="keyword">Target Keyword</Label>
+              <Label htmlFor="keyword">Target Keyword <span style={{ color: '#c44' }}>*</span></Label>
               <Input
                 id="keyword"
                 placeholder="e.g., best whey protein powder"
                 value={formData.keyword}
-                onChange={(e) => updateField('keyword', e.target.value)}
+                onChange={(e) => { updateField('keyword', e.target.value); setValidationErrors(prev => { const { keyword, ...rest } = prev; return rest }) }}
                 required
                 disabled={isGenerating}
+                style={validationErrors.keyword ? { borderColor: '#c44' } : undefined}
               />
+              {validationErrors.keyword && <p className="text-[11px] mt-1" style={{ color: '#c44' }}>{validationErrors.keyword}</p>}
             </div>
           </div>
 

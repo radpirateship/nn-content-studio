@@ -20,8 +20,6 @@ CREATE INDEX IF NOT EXISTS idx_blog_posts_slug ON blog_posts(slug);
 CREATE INDEX IF NOT EXISTS idx_blog_posts_category ON blog_posts(category);
 */
 
-const sql = getSQL()
-
 // Helper function to parse CSV content
 function parseCSV(content: string): any[] {
   const lines = content.trim().split('\n')
@@ -47,9 +45,44 @@ function parseCSV(content: string): any[] {
   return rows
 }
 
+// Helper: query blog posts with validated sort field using tagged template literals
+// Neon's tagged template doesn't support dynamic identifiers, so we branch per sort field
+async function queryBlogPosts(
+  sql: ReturnType<typeof getSQL>,
+  sortField: string,
+  category: string | null,
+  limit: number
+) {
+  // Each branch uses a tagged template literal with the sort column hardcoded
+  if (category) {
+    switch (sortField) {
+      case 'impressions':
+        return sql`SELECT * FROM blog_posts WHERE category = ${category} ORDER BY impressions DESC LIMIT ${limit}`
+      case 'ctr':
+        return sql`SELECT * FROM blog_posts WHERE category = ${category} ORDER BY ctr DESC LIMIT ${limit}`
+      case 'position':
+        return sql`SELECT * FROM blog_posts WHERE category = ${category} ORDER BY position DESC LIMIT ${limit}`
+      default:
+        return sql`SELECT * FROM blog_posts WHERE category = ${category} ORDER BY clicks DESC LIMIT ${limit}`
+    }
+  } else {
+    switch (sortField) {
+      case 'impressions':
+        return sql`SELECT * FROM blog_posts ORDER BY impressions DESC LIMIT ${limit}`
+      case 'ctr':
+        return sql`SELECT * FROM blog_posts ORDER BY ctr DESC LIMIT ${limit}`
+      case 'position':
+        return sql`SELECT * FROM blog_posts ORDER BY position DESC LIMIT ${limit}`
+      default:
+        return sql`SELECT * FROM blog_posts ORDER BY clicks DESC LIMIT ${limit}`
+    }
+  }
+}
+
 // GET: Return all blog posts with optional sorting and filtering
 export async function GET(request: NextRequest) {
   try {
+    const sql = getSQL()
     const searchParams = request.nextUrl.searchParams
     const sort = searchParams.get('sort') || 'clicks'
     const category = searchParams.get('category')
@@ -59,18 +92,7 @@ export async function GET(request: NextRequest) {
     const validSortFields = ['clicks', 'impressions', 'ctr', 'position']
     const sortField = validSortFields.includes(sort) ? sort : 'clicks'
 
-    let query = 'SELECT * FROM blog_posts'
-    const params: any[] = []
-
-    if (category) {
-      query += ' WHERE category = $1'
-      params.push(category)
-    }
-
-    query += ` ORDER BY ${sortField} DESC LIMIT $${params.length + 1}`
-    params.push(limit)
-
-    const result = await sql(query, params)
+    const result = await queryBlogPosts(sql, sortField, category, limit)
 
     return NextResponse.json({
       success: true,
@@ -89,6 +111,7 @@ export async function GET(request: NextRequest) {
 // POST: Upload CSV or JSON array
 export async function POST(request: NextRequest) {
   try {
+    const sql = getSQL()
     const contentType = request.headers.get('content-type') || ''
 
     let blogPosts: any[] = []
@@ -126,7 +149,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Delete existing rows
-    await sql('DELETE FROM blog_posts')
+    await sql`DELETE FROM blog_posts`
 
     // Insert new rows
     const insertPromises = blogPosts.map(post => {
@@ -147,20 +170,15 @@ export async function POST(request: NextRequest) {
       const clicks = parseInt(String(post.clicks || 0)) || 0
       const impressions = parseInt(String(post.impressions || 0)) || 0
 
-      return sql(
-        `INSERT INTO blog_posts (url, section, slug, category, clicks, impressions, ctr, position)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [
-          post.url || '',
-          post.section || null,
-          post.slug || '',
-          post.category || null,
-          clicks,
-          impressions,
-          ctr,
-          position,
-        ]
-      )
+      const url = post.url || ''
+      const section = post.section || null
+      const slug = post.slug || ''
+      const postCategory = post.category || null
+
+      return sql`
+        INSERT INTO blog_posts (url, section, slug, category, clicks, impressions, ctr, position)
+        VALUES (${url}, ${section}, ${slug}, ${postCategory}, ${clicks}, ${impressions}, ${ctr}, ${position})
+      `
     })
 
     await Promise.all(insertPromises)
@@ -182,7 +200,8 @@ export async function POST(request: NextRequest) {
 // DELETE: Clear all blog posts
 export async function DELETE(request: NextRequest) {
   try {
-    await sql('DELETE FROM blog_posts')
+    const sql = getSQL()
+    await sql`DELETE FROM blog_posts`
 
     return NextResponse.json({
       success: true,

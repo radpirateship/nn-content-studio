@@ -9,10 +9,10 @@ import { logActivity } from "@/lib/activity-log";
  */
 export async function POST(request: NextRequest) {
   try {
-    const { title, category, style = "photorealistic", model = "gemini-nano-banana" } = await request.json();
+    const { title, category, style = "photorealistic" } = await request.json();
 
     const imagePrompt = generateImagePrompt(title, category, style);
-    const imageModel: ImageModel = 'gemini-nano-banana';
+    const imageModel: ImageModel = 'gemini-3.1-flash-image-preview';
 
     console.log(`[featured-image] Generating with ${imageModel}`);
 
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
     logActivity("Image generation failed", {
       category: "images",
       status: "error",
-      detail: imagePrompt.slice(0, 100),
+      detail: "Featured image generation failed",
     });
     return NextResponse.json({ image: null, placeholder: true, message: error instanceof Error ? error.message : "Image generation failed." }, { status: 500 });
   }

@@ -78,7 +78,7 @@ export async function GET() {
 
   try {
     const rows = await sql`SELECT slug FROM collections_registry ORDER BY label`
-    results['registry_list'] = rows.map((r: {slug: string}) => r.slug).join(', ')
+    results['registry_list'] = rows.map((r: Record<string, any>) => r.slug).join(', ')
   } catch (e) { results['registry_check'] = `ERROR: ${e}` }
 
   try {

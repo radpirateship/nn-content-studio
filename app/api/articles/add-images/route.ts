@@ -289,6 +289,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Update database if articleId provided
+    let dbSaved = true;
     if (articleId) {
       try {
         const sql = getSQL();
@@ -302,6 +303,7 @@ export async function POST(request: NextRequest) {
         `;
       } catch (dbError) {
         console.error("[add-images] DB update failed:", dbError);
+        dbSaved = false;
       }
     }
 
@@ -312,11 +314,13 @@ export async function POST(request: NextRequest) {
       fallbackBase64: fallbackCount,
       model: imageModel,
       success: true,
+      ...(dbSaved === false && { warning: "Images were inserted into the HTML but the database update failed. Your changes may not persist after refresh." }),
     });
   } catch (error) {
-    console.error("[add-images] Fatal error:", { articleId, category, error });
+    console.error("[add-images] Fatal error:", error);
+    const message = error instanceof Error ? error.message : "Failed to add images";
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to add images" },
+      { error: message, detail: "Image generation or insertion failed. Check that your Anthropic API key is valid and the article has proper section IDs." },
       { status: 500 }
     );
   }

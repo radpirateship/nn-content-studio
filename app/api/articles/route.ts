@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     logActivity("Article save failed", {
       category: "articles",
       status: "error",
-      detail: title,
+      detail: "Unknown article",
     });
     return NextResponse.json(
       { error: "Failed to create article" },
