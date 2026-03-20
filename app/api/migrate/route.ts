@@ -28,6 +28,20 @@ export async function GET() {
   const results: Record<string, string> = {}
   const sql = getDb()
 
+  // --- Ensure base tables exist ---
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS collections_registry (
+        slug        TEXT PRIMARY KEY,
+        label       TEXT NOT NULL,
+        is_builtin  BOOLEAN NOT NULL DEFAULT FALSE,
+        url         TEXT,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `
+    results['collections_registry_table'] = 'OK'
+  } catch (e) { results['collections_registry_table'] = `ERROR: ${e}` }
+
   try {
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS collection_slug TEXT`
     await sql`CREATE INDEX IF NOT EXISTS idx_products_collection ON products(collection_slug)`
@@ -116,6 +130,27 @@ export async function GET() {
     await sql`ALTER TABLE articles ADD COLUMN IF NOT EXISTS article_type TEXT`
     results['articles.article_type'] = 'OK'
   } catch (e) { results['articles.article_type'] = `ERROR: ${e}` }
+
+  // --- Activity log table ---
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS activity_log (
+        id          SERIAL PRIMARY KEY,
+        action      TEXT NOT NULL,
+        category    TEXT NOT NULL DEFAULT 'general',
+        detail      TEXT,
+        status      TEXT NOT NULL DEFAULT 'success',
+        duration_ms INTEGER,
+        metadata    JSONB DEFAULT '{}',
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `
+    await sql`CREATE INDEX IF NOT EXISTS idx_activity_log_created ON activity_log(created_at DESC)`
+    await sql`CREATE INDEX IF NOT EXISTS idx_activity_log_category ON activity_log(category)`
+    // Auto-cleanup: delete entries older than 7 days
+    await sql`DELETE FROM activity_log WHERE created_at < NOW() - INTERVAL '7 days'`
+    results['activity_log_table'] = 'OK'
+  } catch (e) { results['activity_log_table'] = `ERROR: ${e}` }
 
   return NextResponse.json({ success: true, results })
 }

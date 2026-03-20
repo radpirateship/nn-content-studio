@@ -49,6 +49,7 @@ interface RevampAnalysisViewProps {
   }
   onGenerateComplete: (article: GeneratedArticle) => void
   onBack: () => void
+  onStartOver: () => void
   generateSlug: (title: string) => string
   generateSchemaMarkup: (article: Partial<GeneratedArticle>) => string
   saveArticleToDb: (article: GeneratedArticle) => Promise<{ id: number; dbId: number }>
@@ -66,6 +67,7 @@ export function RevampAnalysisView({
   settings,
   onGenerateComplete,
   onBack,
+  onStartOver,
   generateSlug,
   generateSchemaMarkup,
   saveArticleToDb,
@@ -353,6 +355,13 @@ export function RevampAnalysisView({
           {generationStep === 'error' && (
             <div className="mt-8 flex gap-3">
               <button
+                onClick={onBack}
+                className="px-4 py-2 rounded-lg border text-[13px] font-medium"
+                style={{ color: 'var(--text2)', borderColor: 'var(--border)' }}
+              >
+                Back to input
+              </button>
+              <button
                 onClick={() => {
                   setError(null)
                   setGenerationStep('idle')
@@ -361,7 +370,7 @@ export function RevampAnalysisView({
                 className="px-4 py-2 rounded-lg border text-[13px] font-medium"
                 style={{ color: 'var(--text2)', borderColor: 'var(--border)' }}
               >
-                Back
+                Edit outline
               </button>
               <button
                 onClick={handleGenerate}
@@ -567,6 +576,14 @@ export function RevampAnalysisView({
                   {error}
                 </div>
               )}
+              <button
+                onClick={onStartOver}
+                className="text-[12px] font-medium hover:underline"
+                style={{ color: 'var(--text4)' }}
+                disabled={isGenerating}
+              >
+                Start over
+              </button>
               <div className="flex-1" />
               <div className="flex gap-3">
                 <button

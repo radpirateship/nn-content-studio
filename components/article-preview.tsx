@@ -436,59 +436,59 @@ import { CATEGORY_LABELS } from '@/lib/types'
               <div className="p-6">
                 {/* Featured Image */}
                 <div className="mb-6">
-                  <div className="mb-2 flex items-center gap-2">
-                    <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Featured Image (Shopify)</span>
-                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">1200 x 600</span>
-                  </div>
-                  <div className="mb-2 flex gap-2">
-                    <Input
-                      placeholder="Paste featured image URL here..."
-                      value={featuredImageInput}
-                      onChange={(e) => setFeaturedImageInput(e.target.value)}
-                      className="text-sm"
-                    />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setFeaturedImageUrl(featuredImageInput)}
-                    >
-                      Set
-                    </Button>
-                    {featuredImageUrl && (
+                  {featuredImageUrl ? (
+                    <>
+                      <div className="mb-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Featured Image</span>
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">1200 × 600</span>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs text-red-500 hover:bg-red-50 hover:text-red-600"
+                          onClick={() => {
+                            setFeaturedImageUrl('')
+                            setFeaturedImageInput('')
+                            onContentUpdate?.(article.htmlContent || '', { featuredImage: undefined })
+                          }}
+                        >
+                          <Trash2 className="mr-1 h-3 w-3" />
+                          Remove
+                        </Button>
+                      </div>
+                      <div className="relative overflow-hidden rounded-lg" style={{ aspectRatio: '2/1' }}>
+                        <img
+                          src={featuredImageUrl}
+                          alt={`${article.title} - Naked Nutrition`}
+                          className="h-full w-full object-cover"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                          <div className="rounded-xl bg-black/60 px-8 py-4 backdrop-blur-sm">
+                            <h1 className="text-center text-2xl font-bold text-white drop-shadow-lg md:text-3xl">{article.title}</h1>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-2 rounded-lg border border-dashed border-muted-foreground/25 bg-muted/20 px-3 py-2">
+                      <ImageIcon className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+                      <Input
+                        placeholder="Paste featured image URL (1200 × 600)…"
+                        value={featuredImageInput}
+                        onChange={(e) => setFeaturedImageInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') setFeaturedImageUrl(featuredImageInput) }}
+                        className="h-7 flex-1 border-0 bg-transparent px-0 text-xs shadow-none focus-visible:ring-0"
+                      />
                       <Button
                         size="sm"
                         variant="outline"
-                        className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                        onClick={() => {
-                          setFeaturedImageUrl('')
-                          setFeaturedImageInput('')
-                          onContentUpdate?.(article.htmlContent || '', { featuredImage: undefined })
-                        }}
+                        className="h-7 px-2.5 text-xs"
+                        onClick={() => setFeaturedImageUrl(featuredImageInput)}
+                        disabled={!featuredImageInput.trim()}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        Set
                       </Button>
-                    )}
-                  </div>
-                  {featuredImageUrl ? (
-                    <div className="relative overflow-hidden rounded-lg" style={{ aspectRatio: '2/1' }}>
-                      <img
-                        src={featuredImageUrl}
-                        alt={`${article.title} - Naked Nutrition`}
-                        className="h-full w-full object-cover"
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                        <div className="rounded-xl bg-black/60 px-8 py-4 backdrop-blur-sm">
-                          <h1 className="text-center text-2xl font-bold text-white drop-shadow-lg md:text-3xl">{article.title}</h1>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30" style={{ aspectRatio: '2/1' }}>
-                      <div className="text-center text-muted-foreground">
-                        <ImageIcon className="mx-auto mb-2 h-8 w-8" />
-                        <p className="text-sm font-medium">No featured image set</p>
-                        <p className="text-xs">Paste a URL above (1200 x 600 recommended)</p>
-                      </div>
                     </div>
                   )}
                 </div>

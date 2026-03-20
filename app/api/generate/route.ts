@@ -5,6 +5,7 @@ import { type NNCategory } from "@/lib/nn-categories";
 import { callAI } from "@/lib/ai";
 import { CATEGORY_LABELS } from "@/lib/nn-categories";
 import { NN_STYLES } from "@/lib/nn-template";
+import { logActivity } from "@/lib/activity-log";
 
 // ============================================================================
 // SVG icon for external links
@@ -595,6 +596,12 @@ ${faqSchema}`.trim();
 
     console.log("[v0] Generate: NN article assembled, total length:", finalHtml.length);
 
+    logActivity("Article generated", {
+      category: "generation",
+      detail: title,
+      metadata: { keyword, category, wordCount: targetWordCount },
+    });
+
     return NextResponse.json({
       content: finalHtml,
       wordCount: targetWordCount,
@@ -602,6 +609,11 @@ ${faqSchema}`.trim();
     });
   } catch (error) {
     console.error("[v0] Generation error:", error);
+    logActivity("Article generation failed", {
+      category: "generation",
+      status: "error",
+      detail: title,
+    });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to generate content" },
       { status: 500 }

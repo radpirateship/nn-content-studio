@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { replaceWithShopifyImages } from "@/lib/shopifyImageUpload";
 import { getShopifyAccessToken, SHOPIFY_ADMIN_DOMAIN } from "@/lib/shopifyAuth";
+import { logActivity } from "@/lib/activity-log";
 
 // Allow enough time for Shopify staged uploads + polling (each image ~4-30s)
 export const maxDuration = 120;
@@ -208,6 +209,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    logActivity("Published to Shopify", {
+      category: "publish",
+      detail: title,
+      metadata: { handle: createdArticle.handle },
+    });
+
     return NextResponse.json({
       success: true,
       article: {
@@ -223,6 +230,11 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Failed to publish article:", error);
+    logActivity("Shopify publish failed", {
+      category: "publish",
+      status: "error",
+      detail: title,
+    });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to publish article to Shopify" },
       { status: 500 }

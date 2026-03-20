@@ -18,6 +18,9 @@ import {
   List,
   Wrench,
   BookOpen,
+  FileCode,
+  Plug,
+  ScrollText,
 } from 'lucide-react'
 
 export type ViewId =
@@ -39,6 +42,9 @@ export type ViewId =
   | 'error'
   | 'workshop'
   | 'guide'
+  | 'tech-guide'
+  | 'connections'
+  | 'logs'
 
 interface NavItem {
   id: ViewId
@@ -105,6 +111,9 @@ export function AppSidebar({
     { id: 'resources', label: 'Resources', icon: <Database className="h-[18px] w-[18px]" /> },
     { id: 'workshop', label: 'Workshop', icon: <Wrench className="h-[18px] w-[18px]" /> },
     { id: 'guide', label: 'Guide', icon: <BookOpen className="h-[18px] w-[18px]" /> },
+    { id: 'tech-guide', label: 'Technical Guide', icon: <FileCode className="h-[18px] w-[18px]" /> },
+    { id: 'connections', label: 'Connections', icon: <Plug className="h-[18px] w-[18px]" /> },
+    { id: 'logs', label: 'Logs', icon: <ScrollText className="h-[18px] w-[18px]" /> },
   ]
 
   function renderNavItem(item: NavItem) {

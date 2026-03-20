@@ -24,6 +24,10 @@ import { ArticleWorkshopView } from '@/components/article-workshop-view'
 import { RevampArticleView } from '@/components/revamp-article-view'
 import { RevampAnalysisView } from '@/components/revamp-analysis-view'
 import { GuideView } from '@/components/guide-view'
+import { ArticleContextBar } from '@/components/article-context-bar'
+import { TechnicalGuideView } from '@/components/technical-guide-view'
+import { ConnectionsView } from '@/components/connections-view'
+import { LogsView } from '@/components/logs-view'
 import { BarChart3, Clock, Layers, Zap } from 'lucide-react'
 import type { ArticleInput, ArticleStatus, GeneratedArticle, GenerationStep, Product } from '@/lib/types'
 
@@ -586,11 +590,26 @@ export default function ContentStudio() {
     imagesVariant: currentArticle.hasImages ? 'green' as const : 'grey' as const,
   } : undefined
 
+  // Close current article and return to library
+  const handleCloseArticle = () => {
+    setCurrentArticle(null)
+    setIsEditing(false)
+    setActiveView('library')
+  }
+
   // Handle sidebar navigation -- when clicking article-* views without an article, redirect to library
   const handleNavigate = (view: ViewId) => {
-    if (view.startsWith('article-') && !currentArticle) {
+    if ((view.startsWith('article-') || view === 'publish-confirm') && !currentArticle) {
+      toast.error('No article selected', { description: 'Pick an article from the library first.' })
       setActiveView('library')
       return
+    }
+    // Clear stale revamp state when entering revamp-input fresh
+    if (view === 'revamp-input') {
+      setRevampAnalysis(null)
+      setRevampOriginalContent('')
+      setRevampCitations([])
+      setRevampSettings(null)
     }
     setActiveView(view)
   }
@@ -617,6 +636,21 @@ export default function ContentStudio() {
 
       {/* Main Content */}
       <main className="flex flex-col overflow-hidden" style={{ gridRow: '2', gridColumn: '2', background: 'var(--bg-warm)' }}>
+        {/* Article Context Bar — persistent when an article is loaded */}
+        {currentArticle && activeView !== 'revamp-input' && activeView !== 'revamp-analysis' && (
+          <ArticleContextBar
+            title={currentArticle.title}
+            status={currentArticle.status || 'draft'}
+            wordCount={currentArticle.wordCount}
+            category={currentArticle.category}
+            activeView={activeView}
+            hasLinks={currentArticle.hasInternalLinks || false}
+            hasImages={currentArticle.hasImages || false}
+            onNavigate={handleNavigate}
+            onClose={handleCloseArticle}
+          />
+        )}
+
         {/* === Revamp Input View === */}
         {activeView === 'revamp-input' && (
           <RevampArticleView
@@ -643,6 +677,13 @@ export default function ContentStudio() {
               setActiveView('article-content')
             }}
             onBack={() => setActiveView('revamp-input')}
+            onStartOver={() => {
+              setRevampAnalysis(null)
+              setRevampOriginalContent('')
+              setRevampCitations([])
+              setRevampSettings(null)
+              setActiveView('revamp-input')
+            }}
             generateSlug={generateSlug}
             generateSchemaMarkup={generateSchemaMarkup}
             saveArticleToDb={saveArticleToDb}
@@ -663,46 +704,32 @@ export default function ContentStudio() {
           </div>
         )}
 
-        {/* === Redirect to content view when article exists on new-article view === */}
+        {/* === New Article view when an article is already loaded — offer to start fresh === */}
         {activeView === 'new-article' && currentArticle && !isGenerating && (
-          <div className="flex flex-1 flex-col overflow-hidden">
-            {/* Article topbar */}
-            <div className="flex items-center justify-between border-b px-6 py-3" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
-              <div className="min-w-0">
-                <h2 className="truncate font-serif text-[17px] font-semibold" style={{ color: 'var(--text1)' }}>
-                  {currentArticle.title}
-                </h2>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-[12px]" style={{ color: 'var(--text3)' }}>{currentArticle.wordCount?.toLocaleString()} words</span>
-                  <span style={{ color: 'var(--border)' }}>|</span>
-                  <span className="text-[12px]" style={{ color: 'var(--text3)' }}>{currentArticle.category}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5">
+          <div className="flex flex-1 items-center justify-center p-10" style={{ background: 'var(--bg-warm)' }}>
+            <div className="w-full max-w-[440px] rounded-xl border p-8 text-center" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+              <p className="text-[15px] font-medium mb-1" style={{ color: 'var(--text1)' }}>
+                You&apos;re currently editing &ldquo;{currentArticle.title}&rdquo;
+              </p>
+              <p className="text-[13px] mb-6" style={{ color: 'var(--text3)' }}>
+                Close the current article to create a new one, or go back to continue editing.
+              </p>
+              <div className="flex items-center justify-center gap-3">
                 <button
-                  onClick={() => { setCurrentArticle(null); setActiveView('new-article') }}
-                  className="rounded-md px-3 py-1.5 text-[13px] font-medium border"
-                  style={{ background: 'var(--bg)', color: 'var(--text2)', borderColor: 'var(--border)' }}
+                  onClick={() => setActiveView('article-content')}
+                  className="rounded-lg px-4 py-2 text-[13px] font-medium border"
+                  style={{ color: 'var(--text2)', borderColor: 'var(--border)' }}
                 >
-                  New Article
+                  Back to article
+                </button>
+                <button
+                  onClick={() => { setCurrentArticle(null); setIsEditing(false) }}
+                  className="rounded-lg px-4 py-2 text-[13px] font-medium text-white"
+                  style={{ background: 'var(--nn-accent)' }}
+                >
+                  Start new article
                 </button>
               </div>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              {!isEditing ? (
-          <ArticlePreview
-            article={currentArticle}
-            onEdit={() => setIsEditing(true)}
-            onContentUpdate={handleContentUpdate}
-            onStatusChange={handleStatusChange}
-            onPublish={() => setActiveView('publish-confirm')}
-            internalLinks={availableInternalLinks}
-
-                  onGoToStep={() => setActiveView('article-links')}
-                />
-              ) : (
-                <ArticleEditor article={currentArticle} onSave={handleSaveEdit} onCancel={() => setIsEditing(false)} />
-              )}
             </div>
           </div>
         )}
@@ -710,37 +737,15 @@ export default function ContentStudio() {
         {/* === Article Content View === */}
         {activeView === 'article-content' && currentArticle && (
           <div className="flex flex-1 flex-col overflow-hidden">
-            <div className="flex items-center justify-between border-b px-6 py-3" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
-              <div className="min-w-0">
-                <h2 className="truncate font-serif text-[17px] font-semibold" style={{ color: 'var(--text1)' }}>
-                  {currentArticle.title}
-                </h2>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-[12px]" style={{ color: 'var(--text3)' }}>{currentArticle.wordCount?.toLocaleString()} words</span>
-                  <span style={{ color: 'var(--border)' }}>|</span>
-                  <span className="text-[12px]" style={{ color: 'var(--text3)' }}>{currentArticle.category}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => { setCurrentArticle(null); setActiveView('new-article') }}
-                  className="rounded-md px-3 py-1.5 text-[13px] font-medium border"
-                  style={{ background: 'var(--bg)', color: 'var(--text2)', borderColor: 'var(--border)' }}
-                >
-                  New Article
-                </button>
-              </div>
-            </div>
             <div className="flex-1 overflow-y-auto">
               {!isEditing ? (
-          <ArticlePreview
-            article={currentArticle}
-            onEdit={() => setIsEditing(true)}
-            onContentUpdate={handleContentUpdate}
-            onStatusChange={handleStatusChange}
-            onPublish={() => setActiveView('publish-confirm')}
-            internalLinks={availableInternalLinks}
-
+                <ArticlePreview
+                  article={currentArticle}
+                  onEdit={() => setIsEditing(true)}
+                  onContentUpdate={handleContentUpdate}
+                  onStatusChange={handleStatusChange}
+                  onPublish={() => setActiveView('publish-confirm')}
+                  internalLinks={availableInternalLinks}
                   onGoToStep={() => setActiveView('article-links')}
                 />
               ) : (
@@ -785,18 +790,6 @@ export default function ContentStudio() {
           <div className="flex flex-1 overflow-hidden">
             {/* Left: Article content */}
             <div className="flex flex-1 flex-col overflow-hidden">
-              <div className="flex items-center justify-between border-b px-6 py-3" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
-                <div className="min-w-0">
-                  <h2 className="truncate font-serif text-[17px] font-semibold" style={{ color: 'var(--text1)' }}>
-                    {currentArticle.title}
-                  </h2>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[12px]" style={{ color: 'var(--text3)' }}>{currentArticle.wordCount?.toLocaleString()} words</span>
-                    <span style={{ color: 'var(--border)' }}>|</span>
-                    <span className="text-[12px]" style={{ color: 'var(--text3)' }}>{currentArticle.category}</span>
-                  </div>
-                </div>
-              </div>
               <div className="flex-1 overflow-y-auto">
                 <ArticlePreview
                   article={currentArticle}
@@ -837,7 +830,7 @@ export default function ContentStudio() {
           <ContentQueueView
             articles={articles}
             onNewArticle={() => setActiveView('new-article')}
-            onOpenArticle={(article) => { setCurrentArticle(article); setActiveView('article-content') }}
+            onOpenArticle={(article) => { loadArticleFromDb(article); setIsEditing(false); setActiveView('article-content') }}
           />
         )}
 
@@ -864,7 +857,7 @@ export default function ContentStudio() {
             onArticleGenerated={(article) => {
               setArticles(prev => [article, ...prev])
             }}
-            onOpenArticle={(article) => { setCurrentArticle(article); setActiveView('article-content') }}
+            onOpenArticle={(article) => { loadArticleFromDb(article); setIsEditing(false); setActiveView('article-content') }}
             generateSlug={generateSlug}
             generateSchemaMarkup={generateSchemaMarkup}
             saveArticleToDb={saveArticleToDb}
@@ -909,6 +902,21 @@ export default function ContentStudio() {
         {/* === Guide === */}
         {activeView === 'guide' && (
           <GuideView onNavigate={setActiveView} />
+        )}
+
+        {/* === Technical Guide === */}
+        {activeView === 'tech-guide' && (
+          <TechnicalGuideView />
+        )}
+
+        {/* === Connections === */}
+        {activeView === 'connections' && (
+          <ConnectionsView />
+        )}
+
+        {/* === Logs === */}
+        {activeView === 'logs' && (
+          <LogsView />
         )}
 
       </main>

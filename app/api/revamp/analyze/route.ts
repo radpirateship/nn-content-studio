@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { callAI } from "@/lib/ai";
+import { logActivity } from "@/lib/activity-log";
 
 export async function POST(request: NextRequest) {
   try {
@@ -63,12 +64,25 @@ Return ONLY the JSON object, no additional text or markdown fences.`;
     try {
       const cleaned = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const analysis = JSON.parse(cleaned);
+      logActivity("Article analyzed", {
+        category: "revamp",
+        detail: keyword,
+      });
       return NextResponse.json({ analysis });
     } catch {
+      logActivity("Article analyzed", {
+        category: "revamp",
+        detail: keyword,
+      });
       return NextResponse.json({ analysis: result });
     }
   } catch (error) {
     console.error("[revamp/analyze] Error:", error);
+    logActivity("Article analysis failed", {
+      category: "revamp",
+      status: "error",
+      detail: keyword,
+    });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Analysis failed" },
       { status: 500 }

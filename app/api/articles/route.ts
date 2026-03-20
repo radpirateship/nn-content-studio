@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSQL } from "@/lib/db";
+import { logActivity } from "@/lib/activity-log";
 
 // GET - Fetch all articles or a specific article
 export async function GET(request: NextRequest) {
@@ -74,9 +75,19 @@ export async function POST(request: NextRequest) {
       RETURNING *
     `;
 
+    logActivity("Article saved", {
+      category: "articles",
+      detail: title,
+    });
+
     return NextResponse.json(articles[0], { status: 201 });
   } catch (error) {
     console.error("Error creating article:", error);
+    logActivity("Article save failed", {
+      category: "articles",
+      status: "error",
+      detail: title,
+    });
     return NextResponse.json(
       { error: "Failed to create article" },
       { status: 500 }

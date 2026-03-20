@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { generateImageWithModel, type ImageModel } from "@/lib/imageGeneration";
+import { logActivity } from "@/lib/activity-log";
 
 /**
  * POST /api/generate/image
@@ -91,6 +92,11 @@ export async function POST(request: NextRequest) {
       } catch (e) { console.error('[featured-image] Processing failed, using raw:', e); }
     }
 
+    logActivity("Image generated", {
+      category: "images",
+      detail: imagePrompt.slice(0, 100),
+    });
+
     return NextResponse.json({
       image: finalUrl,
       prompt: imagePrompt,
@@ -102,6 +108,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ image: null, placeholder: true, prompt: imagePrompt, message: "Image generation unavailable." }, { status: 502 });
   } catch (error) {
     console.error("[generate/image] Featured image generation error:", error);
+    logActivity("Image generation failed", {
+      category: "images",
+      status: "error",
+      detail: imagePrompt.slice(0, 100),
+    });
     return NextResponse.json({ image: null, placeholder: true, message: error instanceof Error ? error.message : "Image generation failed." }, { status: 500 });
   }
 }

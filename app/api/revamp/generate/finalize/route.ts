@@ -6,6 +6,7 @@ import { getSQL } from "@/lib/db"
 import { productStore } from "@/lib/product-store"
 import { CATEGORY_LABELS } from "@/lib/nn-categories"
 import { NN_STYLES } from "@/lib/nn-template"
+import { logActivity } from "@/lib/activity-log"
 import { randomUUID } from "crypto"
 
 export const maxDuration = 60
@@ -762,9 +763,19 @@ ${faqSchema.length > 0 ? `\n<script type="application/ld+json">\n${faqSchema}\n<
       imageCount: 0,
     }
 
+    logActivity("Revamp finalized", {
+      category: "revamp",
+      detail: titleTag || "Unknown",
+    });
+
     return NextResponse.json({ article })
   } catch (error) {
     console.error("[revamp/generate/finalize] Error:", error)
+    logActivity("Revamp finalization failed", {
+      category: "revamp",
+      status: "error",
+      detail: titleTag || "Unknown",
+    });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to finalize article" },
       { status: 500 }
