@@ -496,6 +496,18 @@ export default function ContentStudio() {
     handleContentUpdate(enrichedHtml, updates)
   }
 
+  const handleStoryboardChange = (storyboard: GeneratedArticle['imageStoryboard']) => {
+    if (!currentArticle) return
+
+    const updatedArticle = {
+      ...currentArticle,
+      imageStoryboard: storyboard,
+    }
+
+    setCurrentArticle(updatedArticle)
+    setArticles(prev => prev.map(a => a.id === updatedArticle.id ? { ...a, imageStoryboard: storyboard } : a))
+  }
+
   const handleDeleteArticle = async (id: string) => {
     // Remove from UI immediately
     setArticles(prev => prev.filter(a => a.id !== id))
@@ -833,6 +845,7 @@ export default function ContentStudio() {
               <ImageStoryboard
                 article={currentArticle}
                 onInsertImages={handleInsertImages}
+                onStoryboardChange={handleStoryboardChange}
                 onBack={() => setActiveView('article-links')}
                 onSkip={() => setActiveView('article-content')}
               />

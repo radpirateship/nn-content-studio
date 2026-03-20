@@ -21,6 +21,7 @@ import { extractImageUrl } from '@/lib/imageUtils'
 interface ImageStoryboardProps {
   article: GeneratedArticle
   onInsertImages: (enrichedHtml: string, imageCount: number, featuredImage?: { url: string; altText: string }) => void
+  onStoryboardChange: (storyboard: ImageStoryboardDraft | null) => void
   onBack: () => void
   onSkip: () => void
 }
@@ -50,6 +51,7 @@ function enrichConcepts(concepts: ImageConcept[], html: string): ImageConcept[] 
 export function ImageStoryboard({
   article,
   onInsertImages,
+  onStoryboardChange,
   onBack,
   onSkip,
 }: ImageStoryboardProps) {
@@ -129,8 +131,6 @@ export function ImageStoryboard({
     nextConcepts: ImageConcept[],
     meta?: Partial<ImageStoryboardDraft>,
   ) => {
-    if (!article.dbId) return
-
     const nextStoryboard: ImageStoryboardDraft = {
       version: 1,
       concepts: nextConcepts,
@@ -140,11 +140,15 @@ export function ImageStoryboard({
       updatedAt: new Date().toISOString(),
     }
 
+    onStoryboardChange(nextStoryboard)
+
     latestMetaRef.current = {
       insertedAt: nextStoryboard.insertedAt,
       insertedCount: nextStoryboard.insertedCount,
       featuredImage: nextStoryboard.featuredImage,
     }
+
+    if (!article.dbId) return
 
     try {
       const response = await fetch('/api/articles', {
@@ -186,6 +190,7 @@ export function ImageStoryboard({
     setConcepts([])
     setInsertedCount(null)
     setFeaturedImageState(undefined)
+    onStoryboardChange(null)
     latestMetaRef.current = {
       insertedAt: undefined,
       insertedCount: undefined,
