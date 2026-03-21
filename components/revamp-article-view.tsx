@@ -321,7 +321,7 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
           {activeTab === 'paste' && (
             <div>
               <label className="block text-[12px] font-mono uppercase tracking-[0.5px] mb-2" style={{ color: 'var(--text3)' }}>
-                Article Content
+                Article Content <span style={{ color: '#c44' }}>*</span>
               </label>
               <textarea
                 value={articleContent}
@@ -486,6 +486,8 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
                     onClick={() => removeCitation(citation.id)}
                     className="px-2 py-1.5 rounded transition-all"
                     style={{ color: 'var(--text3)', background: 'var(--surface)' }}
+                    aria-label="Remove citation"
+                    title="Remove citation"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -528,7 +530,7 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
           {/* Primary Keyword */}
           <div>
             <label className="block text-[11px] font-mono uppercase tracking-[0.5px] mb-2" style={{ color: 'var(--text3)' }}>
-              Primary Keyword
+              Primary Keyword <span style={{ color: '#c44' }}>*</span>
             </label>
             <input
               type="text"
@@ -690,9 +692,9 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
           </div>
           <button
             onClick={handleAnalyze}
-            disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-[13px] text-white transition-all"
-            style={{ background: 'var(--nn-accent)', opacity: isLoading ? 0.7 : 1 }}
+            disabled={isLoading || (!articleContent.trim()) || (!keyword.trim())}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-[13px] text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: 'var(--nn-accent)' }}
           >
             {isLoading ? (
               <>

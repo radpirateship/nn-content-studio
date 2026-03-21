@@ -29,11 +29,12 @@ interface ArticleHistoryProps {
   onSelect: (article: GeneratedArticle) => void
   onDelete: (id: string) => void
   onStatusChange?: (id: string, status: ArticleStatus) => void
+  onCreateNew?: () => void
 }
 
 type FilterStatus = 'all' | 'draft' | 'published'
 
-export function ArticleHistory({ articles, onSelect, onDelete, onStatusChange }: ArticleHistoryProps) {
+export function ArticleHistory({ articles, onSelect, onDelete, onStatusChange, onCreateNew }: ArticleHistoryProps) {
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
   const [filterCategory, setFilterCategory] = useState<string>('all')
@@ -155,9 +156,23 @@ export function ArticleHistory({ articles, onSelect, onDelete, onStatusChange }:
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <FileText className="mb-3 h-10 w-10 opacity-20" style={{ color: 'var(--text4)' }} />
-            <p className="text-[14px]" style={{ color: 'var(--text3)' }}>
-              {articles.length === 0 ? 'No articles generated yet' : 'No articles match your filters'}
+            <p className="text-[14px] font-medium" style={{ color: 'var(--text2)' }}>
+              {articles.length === 0 ? 'No articles yet' : 'No articles match your filters'}
             </p>
+            <p className="mt-1 text-[12px]" style={{ color: 'var(--text4)' }}>
+              {articles.length === 0
+                ? 'Create your first article or revamp an existing one to get started.'
+                : 'Try adjusting your search or filters.'}
+            </p>
+            {articles.length === 0 && onCreateNew && (
+              <button
+                onClick={onCreateNew}
+                className="mt-4 rounded-md px-4 py-2 text-[13px] font-medium text-white transition-all hover:opacity-90"
+                style={{ background: 'var(--nn-accent)' }}
+              >
+                Create New Article
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
@@ -295,6 +310,7 @@ function ArticleCard({
           onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true) }}
           className="ml-auto flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-all hover:opacity-80"
           style={{ color: 'var(--text4)' }}
+          aria-label="Delete article"
           title="Delete article"
         >
           <Trash2 className="h-3 w-3" />

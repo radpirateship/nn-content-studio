@@ -184,6 +184,7 @@ export function AppSidebar({
           onClick={onToggleCollapse}
           className="flex items-center justify-center mx-auto mb-1 rounded-md p-1.5 transition-all hover:bg-[var(--surface)]"
           style={{ color: 'var(--text3)' }}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}

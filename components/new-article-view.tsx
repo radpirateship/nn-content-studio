@@ -249,7 +249,7 @@ export function NewArticleView({ onGenerate, isGenerating }: NewArticleViewProps
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className={fieldLabel} style={{ color: 'var(--text3)' }}>Article Topic / Title</label>
+                <label className={fieldLabel} style={{ color: 'var(--text3)' }}>Article Topic / Title <span style={{ color: '#c44' }}>*</span></label>
                 <input
                   type="text"
                   value={formData.title}
@@ -274,7 +274,7 @@ export function NewArticleView({ onGenerate, isGenerating }: NewArticleViewProps
                   </select>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className={fieldLabel} style={{ color: 'var(--text3)' }}>Target Keyword</label>
+                  <label className={fieldLabel} style={{ color: 'var(--text3)' }}>Target Keyword <span style={{ color: '#c44' }}>*</span></label>
                   <input
                     type="text"
                     value={formData.keyword}

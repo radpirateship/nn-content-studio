@@ -24,7 +24,7 @@ import { ArticleWorkshopView } from '@/components/article-workshop-view'
 import { RevampArticleView } from '@/components/revamp-article-view'
 import { RevampAnalysisView } from '@/components/revamp-analysis-view'
 import { GuideView } from '@/components/guide-view'
-import { ArticleContextBar } from '@/components/article-context-bar'
+import { ArticleContextBar, type SaveStatus } from '@/components/article-context-bar'
 import { TechnicalGuideView } from '@/components/technical-guide-view'
 import { ConnectionsView } from '@/components/connections-view'
 import { LogsView } from '@/components/logs-view'
@@ -60,6 +60,7 @@ export default function ContentStudio() {
 
   // Navigation guard state — prevents losing unsaved edits when switching views
   const [pendingNavigation, setPendingNavigation] = useState<ViewId | null>(null)
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved')
 
   // Revamp state
   const [revampAnalysis, setRevampAnalysis] = useState<any>(null)
@@ -171,6 +172,7 @@ export default function ContentStudio() {
       autoSaveTimerRef.current = null
     }
     isSavingRef.current = true
+    setSaveStatus('saving')
     try {
       const payload: Record<string, unknown> = {
         id: article.dbId,
@@ -204,9 +206,11 @@ export default function ContentStudio() {
       }
       lastSavedRef.current = `${article.dbId}-${hash}`
       autoSaveFailCountRef.current = 0
+      setSaveStatus('saved')
     } catch (error) {
       console.error('[updateArticleInDb] Failed to update article:', error)
       toast.error('Failed to update article in database')
+      setSaveStatus('error')
     } finally {
       isSavingRef.current = false
     }
@@ -236,16 +240,20 @@ export default function ContentStudio() {
     }
     const fingerprint = `${currentArticle.dbId}-${hash}`
     if (fingerprint === lastSavedRef.current) return
+    setSaveStatus('unsaved')
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     autoSaveTimerRef.current = setTimeout(async () => {
       if (isSavingRef.current) return // skip if a manual save is in progress
       isSavingRef.current = true
+      setSaveStatus('saving')
       try {
         await updateArticleInDb(currentArticle)
         lastSavedRef.current = fingerprint
         autoSaveFailCountRef.current = 0
+        setSaveStatus('saved')
       } catch {
         autoSaveFailCountRef.current += 1
+        setSaveStatus('error')
         if (autoSaveFailCountRef.current === 1) {
           toast.warning('Auto-save failed', { description: 'Your latest edits may not be saved. Try saving manually.' })
         } else if (autoSaveFailCountRef.current >= 3) {
@@ -788,6 +796,7 @@ export default function ContentStudio() {
             activeView={activeView}
             hasLinks={currentArticle.hasInternalLinks || false}
             hasImages={currentArticle.hasImages || false}
+            saveStatus={saveStatus}
             onNavigate={handleNavigate}
             onClose={handleCloseArticle}
           />
@@ -964,6 +973,7 @@ export default function ContentStudio() {
               }}
               onDelete={handleDeleteArticle}
               onStatusChange={handleStatusChange}
+              onCreateNew={() => setActiveView('new-article')}
             />
           </div>
         )}

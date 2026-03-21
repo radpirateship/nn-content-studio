@@ -1,6 +1,6 @@
 'use client'
 
-import { X, FileText, Link2, ImageIcon, BarChart3, Send } from 'lucide-react'
+import { X, FileText, Link2, ImageIcon, BarChart3, Send, Check, Loader2, AlertCircle } from 'lucide-react'
 import type { ViewId } from './app-sidebar'
 
 type ArticlePipelineStep = 'article-content' | 'article-links' | 'article-images' | 'article-seo' | 'publish-confirm'
@@ -13,6 +13,8 @@ const PIPELINE_STEPS: { id: ArticlePipelineStep; label: string; icon: React.Reac
   { id: 'publish-confirm', label: 'Publish', icon: <Send className="h-3.5 w-3.5" /> },
 ]
 
+export type SaveStatus = 'saved' | 'saving' | 'unsaved' | 'error'
+
 interface ArticleContextBarProps {
   title: string
   status: string
@@ -21,6 +23,7 @@ interface ArticleContextBarProps {
   activeView: ViewId
   hasLinks: boolean
   hasImages: boolean
+  saveStatus?: SaveStatus
   onNavigate: (view: ViewId) => void
   onClose: () => void
 }
@@ -33,6 +36,7 @@ export function ArticleContextBar({
   activeView,
   hasLinks,
   hasImages,
+  saveStatus,
   onNavigate,
   onClose,
 }: ArticleContextBarProps) {
@@ -65,6 +69,7 @@ export function ArticleContextBar({
           onClick={onClose}
           className="flex items-center justify-center rounded-md p-1 hover:bg-[var(--surface)]"
           style={{ color: 'var(--text3)' }}
+          aria-label="Close article and return to library"
           title="Close article &amp; return to library"
         >
           <X className="h-4 w-4" />
@@ -88,6 +93,22 @@ export function ArticleContextBar({
               <>
                 <span style={{ color: 'var(--border)' }}>&middot;</span>
                 <span>{category}</span>
+              </>
+            )}
+            {saveStatus && (
+              <>
+                <span style={{ color: 'var(--border)' }}>&middot;</span>
+                <span
+                  className="inline-flex items-center gap-1"
+                  style={{
+                    color: saveStatus === 'error' ? '#c44' : saveStatus === 'saving' ? 'var(--text4)' : saveStatus === 'unsaved' ? '#d4930a' : 'var(--nn-accent)',
+                  }}
+                >
+                  {saveStatus === 'saved' && <><Check className="h-2.5 w-2.5" /> Saved</>}
+                  {saveStatus === 'saving' && <><Loader2 className="h-2.5 w-2.5 animate-spin" /> Saving...</>}
+                  {saveStatus === 'unsaved' && <><AlertCircle className="h-2.5 w-2.5" /> Unsaved</>}
+                  {saveStatus === 'error' && <><AlertCircle className="h-2.5 w-2.5" /> Save failed</>}
+                </span>
               </>
             )}
           </div>
