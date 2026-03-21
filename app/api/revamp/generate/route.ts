@@ -1,11 +1,11 @@
 // Revamp article generation route — NN Style Guide compliant
 // Multi-call approach: body content → FAQ → programmatic assembly
-// DB-saving, productStore-backed, uuid-based article IDs
+// DB-saving, DB-backed product recommendations, uuid-based article IDs
 import { type NextRequest, NextResponse } from "next/server"
 import { type NNCategory } from "@/lib/nn-categories"
 import { callAI } from "@/lib/ai"
 import { getSQL } from "@/lib/db"
-import { productStore } from "@/lib/product-store"
+import { getProductRecommendationsFromDB } from "@/lib/product-store"
 import { CATEGORY_LABELS } from "@/lib/nn-categories"
 import { NN_STYLES } from "@/lib/nn-template"
 import { randomUUID } from "crypto"
@@ -302,10 +302,10 @@ export async function POST(request: NextRequest) {
     const articleTone = tone
     const readTime = Math.max(5, Math.round(targetWordCount / 250))
 
-    // ── 1. Load products via productStore ────────────────────────────────────
+    // ── 1. Load products from DB (cold-start safe) ──────────────────────────
 
     const products = includeProducts
-      ? productStore.getRecommendations(category, 4)
+      ? await getProductRecommendationsFromDB(category, 4)
       : []
 
     // ── 2. Build outline context ─────────────────────────────────────────────

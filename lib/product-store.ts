@@ -1,4 +1,7 @@
-// In-memory product store matching Shopify export schema
+// Product store — provides both in-memory (for POST/DELETE flows) and
+// DB-backed (for cold-start-safe recommendations) access to products.
+import { getSQL } from "@/lib/db";
+
 export interface Product {
   id: string;
   title: string;
@@ -129,3 +132,76 @@ class ProductStore {
 }
 
 export const productStore = new ProductStore();
+
+// ── DB-backed functions (cold-start safe) ──────────────────────────────────
+// These query the products table directly, so they work even on a fresh
+// serverless instance where the in-memory store is empty.
+
+function rowToProduct(row: Record<string, unknown>): Product {
+  return {
+    id: String(row.id ?? ""),
+    title: (row.title as string) || "",
+    description: (row.description as string) || "",
+    price: (row.price as string) || "",
+    compareAtPrice: (row.compare_at_price as string) || "",
+    sku: (row.sku as string) || "",
+    vendor: (row.vendor as string) || "",
+    productType: (row.product_type as string) || "",
+    tags: (row.tags as string) || "",
+    category: (row.category as string) || "",
+    imageUrl: (row.image_url as string) || "",
+    handle: (row.handle as string) || "",
+    status: (row.status as string) || "active",
+    inventoryQty: (row.inventory_qty as string) || "",
+    url: (row.url as string) || "",
+  };
+}
+
+/**
+ * Fetch product recommendations from the database for a given category.
+ * Uses CATEGORY_KEYWORDS to build an ILIKE query, then ranks by image + price.
+ * Falls back to the in-memory store if the DB query fails.
+ */
+export async function getProductRecommendationsFromDB(
+  category: string,
+  limit: number = 4
+): Promise<Product[]> {
+  try {
+    const sql = getSQL();
+    const keywords = CATEGORY_KEYWORDS[category] || [category.replace(/-/g, " ")];
+
+    // Fetch all products from DB (the table is small — typically <1000 rows)
+    // and filter/sort in JS using the same keyword logic as the in-memory store.
+    const allRows = await sql`SELECT * FROM products ORDER BY title LIMIT 500`;
+
+    if (allRows.length === 0) {
+      console.warn(`[product-store] No products in DB — falling back to in-memory store`);
+      return productStore.getRecommendations(category, limit);
+    }
+
+    const allProducts = allRows.map(rowToProduct);
+    const filtered = allProducts.filter((p) => {
+      const text = [p.title, p.description, p.productType, p.tags, p.category, p.vendor]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return keywords.some((kw) => text.includes(kw.toLowerCase()));
+    });
+
+    // Sort: prefer products with images and prices
+    const sorted = (filtered.length > 0 ? filtered : allProducts).sort((a, b) => {
+      const aScore = (a.imageUrl ? 2 : 0) + (a.price && a.price !== "0" ? 1 : 0);
+      const bScore = (b.imageUrl ? 2 : 0) + (b.price && b.price !== "0" ? 1 : 0);
+      return bScore - aScore;
+    });
+
+    console.log(
+      `[product-store] DB recommendations for "${category}": ${sorted.slice(0, limit).length} products ` +
+      `(${filtered.length} matched keywords, ${allProducts.length} total in DB)`
+    );
+    return sorted.slice(0, limit);
+  } catch (err) {
+    console.error("[product-store] DB query failed, falling back to in-memory:", err);
+    return productStore.getRecommendations(category, limit);
+  }
+}

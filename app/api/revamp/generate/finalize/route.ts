@@ -3,7 +3,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { callAI } from "@/lib/ai"
 import { getSQL } from "@/lib/db"
-import { productStore } from "@/lib/product-store"
+import { getProductRecommendationsFromDB } from "@/lib/product-store"
 import { CATEGORY_LABELS } from "@/lib/nn-categories"
 import { NN_STYLES } from "@/lib/nn-template"
 import { logActivity } from "@/lib/activity-log"
@@ -497,10 +497,10 @@ Example format: "Yes, <strong>creatine is safe to take without working out</stro
         : callAI("You write direct, expert answers for nutrition articles.", quickAnswerPrompt, { maxTokens: 200 }),
     ])
 
-    // ── Load products via productStore ───────────────────────────────────────
+    // ── Load products from DB (cold-start safe) ─────────────────────────────
 
     const products = includeProducts
-      ? productStore.getRecommendations(category, 4)
+      ? await getProductRecommendationsFromDB(category, 4)
       : []
 
     // ══════════════════════════════════════════════════════════════════════════
