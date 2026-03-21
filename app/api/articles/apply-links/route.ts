@@ -4,6 +4,25 @@ import { getSQL } from "@/lib/db";
 // Link icon SVG
 const LINK_ICON = `<svg stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="currentColor" fill="none" viewBox="0 0 24 24" height="16" width="16" xmlns="http://www.w3.org/2000/svg"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>`;
 
+// Max body size: 2MB
+const MAX_BODY_SIZE = 2_000_000;
+
+/**
+ * Sanitize a URL for safe embedding in an HTML href attribute.
+ * Rejects javascript: URIs, data: URIs, and anything that isn't http(s).
+ * Escapes quotes to prevent attribute breakout.
+ */
+function sanitizeUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+    // Escape characters that could break out of the href attribute
+    return parsed.href.replace(/"/g, "%22").replace(/'/g, "%27");
+  } catch {
+    return null;
+  }
+}
+
 /**
  * POST /api/articles/apply-links
  * 
@@ -16,6 +35,13 @@ export async function POST(request: NextRequest) {
 
     if (!htmlContent) {
       return NextResponse.json({ error: "htmlContent is required" }, { status: 400 });
+    }
+
+    if (typeof htmlContent === "string" && htmlContent.length > MAX_BODY_SIZE) {
+      return NextResponse.json(
+        { error: `HTML content exceeds ${MAX_BODY_SIZE / 1_000_000}MB limit` },
+        { status: 413 }
+      );
     }
 
     if (!approvedLinks || approvedLinks.length === 0) {
@@ -37,9 +63,16 @@ export async function POST(request: NextRequest) {
 
     for (const link of sortedLinks) {
       const anchor = link.editedAnchor || link.anchorText;
-      const url = link.editedUrl || link.targetUrl;
+      const rawUrl = link.editedUrl || link.targetUrl;
 
-      if (!anchor || !url) continue;
+      if (!anchor || !rawUrl) continue;
+
+      // Sanitize URL to prevent XSS (reject javascript:, data:, etc.)
+      const url = sanitizeUrl(rawUrl);
+      if (!url) {
+        console.warn(`[apply-links] Rejected unsafe URL: "${rawUrl.slice(0, 100)}"`);
+        continue;
+      }
 
       const escapedAnchor = anchor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       

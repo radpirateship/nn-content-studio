@@ -29,6 +29,16 @@ import { TechnicalGuideView } from '@/components/technical-guide-view'
 import { ConnectionsView } from '@/components/connections-view'
 import { LogsView } from '@/components/logs-view'
 import { BarChart3, Clock, Layers, Zap } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import type { ArticleInput, ArticleStatus, GeneratedArticle, GenerationStep, Product } from '@/lib/types'
 
 export default function ContentStudio() {
@@ -47,6 +57,9 @@ export default function ContentStudio() {
   const [generationStep, setGenerationStep] = useState<GenerationStep>('idle')
   const [generationProgress, setGenerationProgress] = useState(0)
   const [generationMessage, setGenerationMessage] = useState('')
+
+  // Navigation guard state — prevents losing unsaved edits when switching views
+  const [pendingNavigation, setPendingNavigation] = useState<ViewId | null>(null)
 
   // Revamp state
   const [revampAnalysis, setRevampAnalysis] = useState<any>(null)
@@ -698,20 +711,39 @@ export default function ContentStudio() {
     imagesVariant: currentArticle.hasImages ? 'green' as const : 'grey' as const,
   } : undefined
 
-  // Close current article and return to library
+  // Close current article and return to library (with unsaved-changes guard)
   const handleCloseArticle = () => {
+    if (autoSaveTimerRef.current) {
+      setPendingNavigation('library')
+      return
+    }
     setCurrentArticle(null)
     setIsEditing(false)
     setActiveView('library')
   }
 
+  // Views that are part of the article editing workflow — no unsaved-changes guard between these
+  const ARTICLE_WORKFLOW_VIEWS = new Set<ViewId>([
+    'article-content', 'article-links', 'article-images',
+    'article-seo', 'publish-confirm',
+  ])
+
   // Handle sidebar navigation -- when clicking article-* views without an article, redirect to library
-  const handleNavigate = (view: ViewId) => {
+  const handleNavigate = useCallback((view: ViewId) => {
     if ((view.startsWith('article-') || view === 'publish-confirm') && !currentArticle) {
       toast.error('No article selected', { description: 'Pick an article from the library first.' })
       setActiveView('library')
       return
     }
+
+    // Check for unsaved changes when leaving the article editing workflow
+    // Don't guard transitions within the workflow (content ↔ links ↔ images ↔ publish)
+    const leavingWorkflow = ARTICLE_WORKFLOW_VIEWS.has(activeView as ViewId) && !ARTICLE_WORKFLOW_VIEWS.has(view)
+    if (leavingWorkflow && autoSaveTimerRef.current) {
+      setPendingNavigation(view)
+      return
+    }
+
     // Clear stale revamp state when entering revamp-input fresh
     if (view === 'revamp-input') {
       setRevampAnalysis(null)
@@ -720,7 +752,7 @@ export default function ContentStudio() {
       setRevampSettings(null)
     }
     setActiveView(view)
-  }
+  }, [activeView, currentArticle])
 
   return (
     <div className="grid h-screen overflow-hidden" style={{ gridTemplateColumns: sidebarCollapsed ? '56px 1fr' : 'var(--sidebar-w) 1fr', gridTemplateRows: 'var(--header-h) 1fr', transition: 'grid-template-columns 0.2s ease' }}>
@@ -1040,6 +1072,52 @@ export default function ContentStudio() {
         )}
 
       </main>
+
+      {/* Unsaved changes navigation guard */}
+      <AlertDialog open={pendingNavigation !== null} onOpenChange={(open) => { if (!open) setPendingNavigation(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have recent edits that haven&apos;t been saved yet. What would you like to do?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingNavigation(null)}>Stay</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!pendingNavigation) return
+                // Save first, then navigate
+                if (currentArticle?.dbId) {
+                  updateArticleInDb(currentArticle).finally(() => {
+                    if (autoSaveTimerRef.current) { clearTimeout(autoSaveTimerRef.current); autoSaveTimerRef.current = null }
+                    setActiveView(pendingNavigation)
+                    setPendingNavigation(null)
+                  })
+                } else {
+                  setActiveView(pendingNavigation)
+                  setPendingNavigation(null)
+                }
+              }}
+              style={{ background: 'var(--nn-accent)', color: '#fff' }}
+            >
+              Save &amp; leave
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => {
+                if (!pendingNavigation) return
+                // Discard and navigate
+                if (autoSaveTimerRef.current) { clearTimeout(autoSaveTimerRef.current); autoSaveTimerRef.current = null }
+                setActiveView(pendingNavigation)
+                setPendingNavigation(null)
+              }}
+              style={{ background: 'transparent', color: 'var(--text3)', border: '1px solid var(--border)' }}
+            >
+              Discard &amp; leave
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

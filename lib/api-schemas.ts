@@ -22,7 +22,7 @@ export const generateArticleRequestSchema = z.object({
   keyword: z.string().trim().min(1, "keyword is required"),
   category: optionalString,
   tone: optionalString,
-  wordCount: z.coerce.number().int().positive().max(10000).optional(),
+  wordCount: z.coerce.number().int().positive().max(6000).optional(),
   products: z.array(productInputSchema).optional(),
   relatedArticles: z
     .array(
@@ -47,7 +47,7 @@ export const revampGenerateRequestSchema = z.object({
   category: z.string().trim().min(1, "category is required"),
   keyword: z.string().trim().min(1, "keyword is required"),
   tone: optionalString,
-  wordCount: z.coerce.number().int().positive().max(10000).optional(),
+  wordCount: z.coerce.number().int().positive().max(6000).optional(),
   includeProducts: z.boolean().optional(),
   includeFAQ: z.boolean().optional(),
   includeEmailCapture: z.boolean().optional(),

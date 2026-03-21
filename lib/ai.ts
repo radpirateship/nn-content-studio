@@ -4,15 +4,26 @@
  * Reads ANTHROPIC_API_KEY lazily at call time (not module-load time).
  *
  * Updated: 2026-03-20 — added timeout, response validation, better errors
+ * Updated: 2026-03-21 — added stop_reason truncation detection
  */
 
 const DEFAULT_TIMEOUT_MS = 90_000; // 90 seconds
 
-export async function callAI(
+export interface AIResponse {
+  text: string;
+  stopReason: string;
+  truncated: boolean;
+}
+
+/**
+ * Call Claude and return structured response with truncation metadata.
+ * Use this when you need to know whether the response was cut short.
+ */
+export async function callAIFull(
   systemPrompt: string,
   userPrompt: string,
   options?: { maxTokens?: number; model?: string; timeoutMs?: number }
-): Promise<string> {
+): Promise<AIResponse> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
 
   if (!apiKey) {
@@ -87,6 +98,17 @@ export async function callAI(
 
   const data = await response.json();
   const text = data.content?.[0]?.text || "";
+  const stopReason = data.stop_reason || "unknown";
+  const truncated = stopReason === "max_tokens";
+
+  if (truncated) {
+    console.warn(
+      `[ai] Response TRUNCATED (stop_reason=max_tokens). ` +
+      `Requested max_tokens=${maxTokens}, model=${model}. ` +
+      `Response length: ${text.length} chars. ` +
+      `The output may have unclosed HTML tags or incomplete content.`
+    );
+  }
 
   // Validate we got real content back
   if (!text || text.trim().length < 20) {
@@ -97,5 +119,26 @@ export async function callAI(
     );
   }
 
-  return text;
+  return { text, stopReason, truncated };
+}
+
+/**
+ * Call Claude and return just the text string (backward-compatible).
+ * Logs a warning if the response was truncated but still returns the text.
+ */
+export async function callAI(
+  systemPrompt: string,
+  userPrompt: string,
+  options?: { maxTokens?: number; model?: string; timeoutMs?: number }
+): Promise<string> {
+  const result = await callAIFull(systemPrompt, userPrompt, options);
+
+  if (result.truncated) {
+    console.warn(
+      "[ai] WARNING: Response was truncated (hit max_tokens). " +
+      "The caller received incomplete output. Consider increasing maxTokens or reducing prompt complexity."
+    );
+  }
+
+  return result.text;
 }

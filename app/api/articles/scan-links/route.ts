@@ -11,6 +11,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "htmlContent is required" }, { status: 400 });
     }
 
+    if (typeof htmlContent === "string" && htmlContent.length > 2_000_000) {
+      return NextResponse.json(
+        { error: "HTML content exceeds 2MB limit" },
+        { status: 413 }
+      );
+    }
+
     if ((!internalLinks || internalLinks.length === 0) && (!collectionsLinks || collectionsLinks.length === 0)) {
       return NextResponse.json({ error: "At least one of internalLinks or collectionsLinks is required" }, { status: 400 });
     }

@@ -37,6 +37,22 @@ async function compressToDataUri(url: string): Promise<string> {
 const STYLE_SUFFIX =
   "Clean professional photography, white background, modern editorial style, high quality, well-lit.";
 
+// Per-image timeout: 45 seconds. Prevents one hung Gemini call from stalling the entire batch.
+const PER_IMAGE_TIMEOUT_MS = 45_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${ms / 1000}s`)),
+      ms
+    );
+    promise.then(
+      (val) => { clearTimeout(timer); resolve(val); },
+      (err) => { clearTimeout(timer); reject(err); }
+    );
+  });
+}
+
 /**
  * Extract H2 sections from the article and build targeted image prompts.
  * Each prompt is tagged with the section ID it should be injected into.
@@ -107,6 +123,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "htmlContent is required" }, { status: 400 });
     }
 
+    if (typeof htmlContent === "string" && htmlContent.length > 2_000_000) {
+      return NextResponse.json(
+        { error: "HTML content exceeds 2MB limit" },
+        { status: 413 }
+      );
+    }
+
     const imageModel: ImageModel = "gemini-3.1-flash-image-preview";
 
     if (!process.env.GEMINI_API_KEY) {
@@ -165,41 +188,58 @@ export async function POST(request: NextRequest) {
       const trimmedPrompt =
         sp.prompt.length > 150 ? sp.prompt.slice(0, 150).trim() : sp.prompt;
       const fullPrompt = `${trimmedPrompt}. ${STYLE_SUFFIX}`;
+      const imageLabel = `Image ${i + 1}/${sectionPrompts.length}`;
 
       console.log(
-        `[add-images] Generating image ${i + 1}/${sectionPrompts.length} for section "${sp.sectionId}"...`
+        `[add-images] Generating ${imageLabel} for section "${sp.sectionId}"...`
       );
 
-      let result = await generateImageWithModel(fullPrompt, imageModel, {
-        style: "realistic_image",
-        imageSize: "landscape_16_9",
-        aspectRatio: "16:9",
-      });
-
-      if (!result) {
-        // One retry with a simpler prompt
-        console.warn(`[add-images] Image ${i + 1} failed — retrying with simpler prompt...`);
-        await delay(3000);
-        result = await generateImageWithModel(
-          `${sp.heading}, professional product photo, white background`,
-          imageModel,
-          { style: "realistic_image", imageSize: "landscape_16_9", aspectRatio: "16:9" }
+      try {
+        let result = await withTimeout(
+          generateImageWithModel(fullPrompt, imageModel, {
+            style: "realistic_image",
+            imageSize: "landscape_16_9",
+            aspectRatio: "16:9",
+          }),
+          PER_IMAGE_TIMEOUT_MS,
+          imageLabel
         );
-      }
 
-      if (result) {
-        // Compress inline (fast, <1s) before we move on
-        const compressed = await compressToDataUri(result.url);
-        rawImages.push({
-          dataUri: compressed,
-          sectionId: sp.sectionId,
-          heading: sp.heading,
-          altText: sp.altText,
-          provider: result.provider,
-        });
-        console.log(`[add-images] Image ${i + 1} generated and compressed ✓`);
-      } else {
-        console.error(`[add-images] Image ${i + 1} failed after retry — skipping`);
+        if (!result) {
+          // One retry with a simpler prompt
+          console.warn(`[add-images] ${imageLabel} failed — retrying with simpler prompt...`);
+          await delay(3000);
+          result = await withTimeout(
+            generateImageWithModel(
+              `${sp.heading}, professional product photo, white background`,
+              imageModel,
+              { style: "realistic_image", imageSize: "landscape_16_9", aspectRatio: "16:9" }
+            ),
+            PER_IMAGE_TIMEOUT_MS,
+            `${imageLabel} retry`
+          );
+        }
+
+        if (result) {
+          // Compress inline (fast, <1s) before we move on
+          const compressed = await compressToDataUri(result.url);
+          rawImages.push({
+            dataUri: compressed,
+            sectionId: sp.sectionId,
+            heading: sp.heading,
+            altText: sp.altText,
+            provider: result.provider,
+          });
+          console.log(`[add-images] ${imageLabel} generated and compressed ✓`);
+        } else {
+          console.error(`[add-images] ${imageLabel} failed after retry — skipping`);
+        }
+      } catch (err) {
+        // Catch timeout or unexpected errors — log and continue to next image
+        console.error(
+          `[add-images] ${imageLabel} error (continuing to next):`,
+          err instanceof Error ? err.message : err
+        );
       }
     }
 

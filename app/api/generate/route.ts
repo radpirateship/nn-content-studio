@@ -2,7 +2,7 @@
 // Generates full NN-templated articles with navigation, products, FAQ, schema
 import { type NextRequest, NextResponse } from "next/server";
 import { type NNCategory } from "@/lib/nn-categories";
-import { callAI } from "@/lib/ai";
+import { callAI, callAIFull } from "@/lib/ai";
 import { CATEGORY_LABELS } from "@/lib/nn-categories";
 import { NN_STYLES } from "@/lib/nn-template";
 import { logActivity } from "@/lib/activity-log";
@@ -275,7 +275,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const targetWordCount = wordCount || 2500;
+    const targetWordCount = Math.min(wordCount || 2500, 6000);
     const articleTone = tone || "educational";
     const categoryLabel = category ? CATEGORY_LABELS[category as NNCategory] || category : "Supplements";
     const collectionSlug = category ? CATEGORY_COLLECTION[category] || (collection ? collectionNameToSlug(collection) : "all") : (collection ? collectionNameToSlug(collection) : "all");
@@ -364,8 +364,10 @@ Requirements:
     console.log("[v0] Generate: calling AI for NN body content...");
     // Cap tokens dynamically: words ÷ 0.75 gives token equivalent, +25% headroom for HTML tags
     const maxTokens = Math.min(8000, Math.round((targetWordCount / 0.75) * 1.25));
-    const bodyContent = await callAI(systemPrompt, userPrompt, { maxTokens });
-    console.log("[v0] Generate: body content received, length:", bodyContent.length);
+    const bodyResult = await callAIFull(systemPrompt, userPrompt, { maxTokens });
+    const bodyContent = bodyResult.text;
+    const bodyTruncated = bodyResult.truncated;
+    console.log("[v0] Generate: body content received, length:", bodyContent.length, bodyTruncated ? "⚠️ TRUNCATED" : "✓ complete");
 
     // Clean up any stray markdown syntax or leaked image placeholders
     let cleanedBodyContent = bodyContent
@@ -641,6 +643,10 @@ ${faqSchema}`.trim();
       content: finalHtml,
       wordCount: targetWordCount,
       metaDescription: subtitle.trim().slice(0, 160),
+      ...(bodyTruncated && {
+        warning: "The AI response was truncated (hit token limit). The article may have incomplete sections or unclosed HTML tags. Consider reducing word count or regenerating.",
+        truncated: true,
+      }),
     });
   } catch (error) {
     console.error("[v0] Generation error:", error);
