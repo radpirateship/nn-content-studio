@@ -486,6 +486,7 @@ export function BulkUploadView({
               <Button
                 variant="outline" size="sm"
                 onClick={retryFailed}
+                disabled={isRunning}
                 className="gap-1.5 text-[12px]"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
@@ -495,8 +496,8 @@ export function BulkUploadView({
           </div>
           <Button
             size="sm"
-            disabled={selectedForPublish.size === 0}
-            className="gap-1.5 text-[12px]"
+            disabled={selectedForPublish.size === 0 || isRunning}
+            className="gap-1.5 text-[12px] disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ background: 'var(--nn-accent)', color: '#fff' }}
           >
             <Send className="h-3.5 w-3.5" />

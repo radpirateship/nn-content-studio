@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Zap, BookOpen } from 'lucide-react'
+import { Search, Zap, BookOpen, Loader2 } from 'lucide-react'
 import type { ArticleInput, ArticleTone } from '@/lib/types'
 // ShopifyBlogTag is now just a string type
 
@@ -487,9 +487,10 @@ export function NewArticleView({ onGenerate, isGenerating }: NewArticleViewProps
           <button
             onClick={handleSubmit}
             disabled={isGenerating || !formData.title || !formData.keyword}
-            className="rounded-md px-5 py-2.5 text-[14px] font-semibold text-white transition-all disabled:opacity-50"
+            className="rounded-md px-5 py-2.5 text-[14px] font-semibold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             style={{ background: isGenerating ? 'var(--text3)' : 'var(--nn-accent)' }}
           >
+            {isGenerating && <Loader2 className="h-4 w-4 animate-spin" />}
             {isGenerating ? 'Generating...' : runMode === 'auto' ? 'Start Auto-Run' : runMode === 'bulk' ? 'Add to Queue' : 'Generate Outline \u2192'}
           </button>
         </div>
