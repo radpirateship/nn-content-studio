@@ -72,7 +72,8 @@ import { buildShopifyTags } from '@/lib/tagMapping'
   // Product management state
   const [articleProducts, setArticleProducts] = useState<typeof article.products>(article.products || [])
   const [isSavingProducts, setIsSavingProducts] = useState(false)
-  const [productSaveStatus, setProductSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle')
+  const [isBuilding, setIsBuilding] = useState(false)
+  const [productSaveStatus, setProductSaveStatus] = useState<'idle' | 'saved' | 'built' | 'error'>('idle')
   const [isAutoSelecting, setIsAutoSelecting] = useState(false)
   const [showProductPicker, setShowProductPicker] = useState(false)
   const [pickerProducts, setPickerProducts] = useState<Array<Record<string, string>>>([])
@@ -204,6 +205,43 @@ import { buildShopifyTags } from '@/lib/tagMapping'
       setProductSaveStatus('error')
     } finally {
       setIsSavingProducts(false)
+    }
+  }
+
+  const buildIntoArticle = async () => {
+    if (!article.dbId || articleProducts.length === 0) return
+    setIsBuilding(true)
+    try {
+      const res = await fetch('/api/articles/inject-products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: article.dbId,
+          products: articleProducts.map(p => ({
+            title: p.title,
+            description: p.description,
+            price: p.price,
+            imageUrl: p.imageUrl,
+            url: p.url,
+            handle: p.handle,
+            vendor: p.vendor,
+            tags: Array.isArray(p.tags) ? p.tags.join(', ') : (p.tags || ''),
+          })),
+          categoryLabel: CATEGORY_LABELS[article.category] || article.category || 'Product',
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        onContentUpdate?.(data.html_content, { products: articleProducts })
+        setProductSaveStatus('built')
+        setTimeout(() => setProductSaveStatus('idle'), 4000)
+      } else {
+        setProductSaveStatus('error')
+      }
+    } catch {
+      setProductSaveStatus('error')
+    } finally {
+      setIsBuilding(false)
     }
   }
 
@@ -792,12 +830,18 @@ import { buildShopifyTags } from '@/lib/tagMapping'
                   <CheckCircle2 className="h-3.5 w-3.5" /> Saved
                 </span>
               )}
+              {productSaveStatus === 'built' && (
+                <span className="text-xs text-green-600 flex items-center gap-1">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Built into article
+                </span>
+              )}
               {productSaveStatus === 'error' && (
                 <span className="text-xs text-destructive flex items-center gap-1">
-                  <AlertCircle className="h-3.5 w-3.5" /> Save failed
+                  <AlertCircle className="h-3.5 w-3.5" /> Failed
                 </span>
               )}
               <Button
+                variant="outline"
                 size="sm"
                 onClick={saveProducts}
                 disabled={isSavingProducts || !article.dbId}
@@ -805,7 +849,18 @@ import { buildShopifyTags } from '@/lib/tagMapping'
                 {isSavingProducts
                   ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                   : <Save className="mr-1.5 h-3.5 w-3.5" />}
-                Save
+                Save list
+              </Button>
+              <Button
+                size="sm"
+                onClick={buildIntoArticle}
+                disabled={isBuilding || articleProducts.length === 0 || !article.dbId}
+                title="Inject product cards into the article HTML"
+              >
+                {isBuilding
+                  ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  : <Sparkles className="mr-1.5 h-3.5 w-3.5" />}
+                Build into article
               </Button>
             </div>
 
