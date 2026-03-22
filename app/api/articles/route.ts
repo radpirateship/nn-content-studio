@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     }
 
     const articles = await sql`
-      SELECT id, title, slug, category, keyword, status, word_count, meta_description, created_at, updated_at
+      SELECT id, title, slug, category, keyword, status, word_count, meta_description, products, created_at, updated_at
       FROM articles
       ORDER BY created_at DESC
     `;

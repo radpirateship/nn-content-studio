@@ -144,7 +144,7 @@ export default function ContentStudio() {
         const response = await fetch('/api/articles')
         if (response.ok) {
           const data = await response.json()
-          const articlesWithDates = data.map((a: { id: string; title: string; slug: string; category: string; keyword: string; status: string; word_count: number; meta_description?: string; created_at: string; updated_at: string }) => ({
+          const articlesWithDates = data.map((a: { id: string; title: string; slug: string; category: string; keyword: string; status: string; word_count: number; meta_description?: string; products?: unknown[]; created_at: string; updated_at: string }) => ({
             id: `article-${a.id}`,
             dbId: a.id,
             title: a.title,
@@ -154,6 +154,7 @@ export default function ContentStudio() {
             status: a.status,
             wordCount: a.word_count,
             metaDescription: a.meta_description || '',
+            products: a.products || [],
             createdAt: new Date(a.created_at),
           }))
           setArticles(articlesWithDates)
@@ -784,6 +785,7 @@ export default function ContentStudio() {
               ? { id: `feat-${article.id}`, prompt: '', url: fullArticle.featured_image_url, altText: fullArticle.featured_image_alt || article.title, placement: 'featured' as const }
               : undefined,
             imageStoryboard: fullArticle.image_storyboard || null,
+            products: fullArticle.products || [],
           }
           setCurrentArticle(loaded)
           await loadInternalLinksForArticle(loaded)

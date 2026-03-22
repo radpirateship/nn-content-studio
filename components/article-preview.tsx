@@ -42,7 +42,6 @@ import {
   PackageSearch,
   Plus,
   X,
-  Save,
   } from 'lucide-react'
 import type { GeneratedArticle } from '@/lib/types'
 import { CATEGORY_LABELS } from '@/lib/types'
@@ -71,9 +70,8 @@ import { buildShopifyTags } from '@/lib/tagMapping'
 
   // Product management state
   const [articleProducts, setArticleProducts] = useState<typeof article.products>(article.products || [])
-  const [isSavingProducts, setIsSavingProducts] = useState(false)
   const [isBuilding, setIsBuilding] = useState(false)
-  const [productSaveStatus, setProductSaveStatus] = useState<'idle' | 'saved' | 'built' | 'error'>('idle')
+  const [productSaveStatus, setProductSaveStatus] = useState<'idle' | 'built' | 'error'>('idle')
   const [isAutoSelecting, setIsAutoSelecting] = useState(false)
   const [showProductPicker, setShowProductPicker] = useState(false)
   const [pickerProducts, setPickerProducts] = useState<Array<Record<string, string>>>([])
@@ -168,44 +166,6 @@ import { buildShopifyTags } from '@/lib/tagMapping'
   const removeProduct = (id: string) => {
     setArticleProducts(prev => prev.filter(p => (p.id || p.handle) !== id))
     setProductSaveStatus('idle')
-  }
-
-  const saveProducts = async () => {
-    if (!article.dbId) return
-    setIsSavingProducts(true)
-    try {
-      const res = await fetch('/api/articles', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: article.dbId,
-          products: articleProducts.map(p => ({
-            id: p.id,
-            handle: p.handle,
-            title: p.title,
-            description: p.description,
-            vendor: p.vendor,
-            productType: p.productType,
-            tags: Array.isArray(p.tags) ? p.tags.join(', ') : (p.tags || ''),
-            price: p.price,
-            compareAtPrice: p.compareAtPrice,
-            imageUrl: p.imageUrl,
-            url: p.url,
-          })),
-        }),
-      })
-      if (res.ok) {
-        onContentUpdate?.(article.htmlContent, { products: articleProducts })
-        setProductSaveStatus('saved')
-        setTimeout(() => setProductSaveStatus('idle'), 3000)
-      } else {
-        setProductSaveStatus('error')
-      }
-    } catch {
-      setProductSaveStatus('error')
-    } finally {
-      setIsSavingProducts(false)
-    }
   }
 
   const buildIntoArticle = async () => {
@@ -803,6 +763,28 @@ import { buildShopifyTags } from '@/lib/tagMapping'
 
           {/* Products Tab */}
           <TabsContent value="products" className="mt-0 space-y-4">
+            {/* HTML status banner */}
+            {(() => {
+              const inHtml = article.htmlContent?.includes('id="featured-products"') || article.htmlContent?.includes("id='featured-products'")
+              if (inHtml) {
+                return (
+                  <div className="flex items-center gap-2 rounded-md bg-green-500/10 border border-green-500/20 px-3 py-2 text-xs text-green-700 dark:text-green-400">
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                    <span>Product section is live in the article HTML. Selecting new products and clicking <strong>Build into article</strong> will replace it.</span>
+                  </div>
+                )
+              }
+              if (articleProducts.length > 0) {
+                return (
+                  <div className="flex items-center gap-2 rounded-md bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>Products selected but not yet in the article HTML. Click <strong>Build into article</strong> to embed them.</span>
+                  </div>
+                )
+              }
+              return null
+            })()}
+
             {/* Toolbar */}
             <div className="flex items-center gap-2 flex-wrap">
               <Button
@@ -825,11 +807,6 @@ import { buildShopifyTags } from '@/lib/tagMapping'
                 Browse catalog
               </Button>
               <div className="flex-1" />
-              {productSaveStatus === 'saved' && (
-                <span className="text-xs text-green-600 flex items-center gap-1">
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Saved
-                </span>
-              )}
               {productSaveStatus === 'built' && (
                 <span className="text-xs text-green-600 flex items-center gap-1">
                   <CheckCircle2 className="h-3.5 w-3.5" /> Built into article
@@ -841,26 +818,14 @@ import { buildShopifyTags } from '@/lib/tagMapping'
                 </span>
               )}
               <Button
-                variant="outline"
-                size="sm"
-                onClick={saveProducts}
-                disabled={isSavingProducts || !article.dbId}
-              >
-                {isSavingProducts
-                  ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                  : <Save className="mr-1.5 h-3.5 w-3.5" />}
-                Save list
-              </Button>
-              <Button
                 size="sm"
                 onClick={buildIntoArticle}
                 disabled={isBuilding || articleProducts.length === 0 || !article.dbId}
-                title="Inject product cards into the article HTML"
               >
                 {isBuilding
                   ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                   : <Sparkles className="mr-1.5 h-3.5 w-3.5" />}
-                Build into article
+                {article.htmlContent?.includes('id="featured-products"') ? 'Rebuild product section' : 'Build into article'}
               </Button>
             </div>
 
