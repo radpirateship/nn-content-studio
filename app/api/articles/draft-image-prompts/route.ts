@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { callAI } from "@/lib/ai";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 /**
  * POST /api/articles/draft-image-prompts
@@ -11,6 +12,9 @@ import { callAI } from "@/lib/ai";
  */
 export async function POST(request: NextRequest) {
   try {
+    const limit = rateLimit("draft-image-prompts", { windowMs: 60_000, max: 5 });
+    if (!limit.allowed) return rateLimitResponse(limit);
+
     const { htmlContent, articleTitle, articleKeyword, category } = await request.json();
 
     if (!htmlContent) {

@@ -4,6 +4,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { type NNCategory } from "@/lib/nn-categories"
 import { callAI } from "@/lib/ai"
 import { CATEGORY_LABELS } from "@/lib/nn-categories"
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit"
 
 export const maxDuration = 60
 
@@ -42,6 +43,9 @@ interface ContentGenerateRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    const limit = rateLimit("revamp-content", { windowMs: 60_000, max: 5 })
+    if (!limit.allowed) return rateLimitResponse(limit)
+
     const body: ContentGenerateRequest = await request.json()
 
     const {

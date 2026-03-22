@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { generateImageWithModel, type ImageModel } from "@/lib/imageGeneration";
 import { logActivity } from "@/lib/activity-log";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 /**
  * POST /api/generate/image
@@ -9,6 +10,9 @@ import { logActivity } from "@/lib/activity-log";
  */
 export async function POST(request: NextRequest) {
   try {
+    const limit = rateLimit("generate-image-featured", { windowMs: 60_000, max: 5 });
+    if (!limit.allowed) return rateLimitResponse(limit);
+
     const { title, category, style = "photorealistic" } = await request.json();
 
     const imagePrompt = generateImagePrompt(title, category, style);

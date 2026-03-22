@@ -1,6 +1,7 @@
 import sharp from "sharp";
 import { type NextRequest, NextResponse } from "next/server";
 import { generateImageWithModel, ImageGenerationError, type ImageModel } from "@/lib/imageGeneration";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export const maxDuration = 120;
 
@@ -15,6 +16,9 @@ export const maxDuration = 120;
  */
 export async function POST(request: NextRequest) {
   try {
+    const limit = rateLimit("generate-image", { windowMs: 60_000, max: 5 });
+    if (!limit.allowed) return rateLimitResponse(limit);
+
     const { prompt, conceptId, imageType = 'technical', title } = await request.json();
 
     if (!prompt) {

@@ -74,29 +74,47 @@ export async function POST(request: NextRequest) {
       metadata: { slug, category, hasKeyword: Boolean(keyword) },
     });
 
-    // Check if slug exists and make it unique if needed
-    let uniqueSlug = slug;
-    const existingSlugs = await sql`
-      SELECT slug FROM articles WHERE slug LIKE ${slug + '%'}
-    `;
-
-    if (existingSlugs.length > 0) {
-      uniqueSlug = `${slug}-${Date.now()}`;
+    // Insert with retry on slug collision (unique constraint violation).
+    // This replaces the old SELECT-then-INSERT pattern which had a race
+    // condition when two concurrent requests generated the same slug.
+    let savedArticle;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const trySlug = attempt === 0 ? slug : `${slug}-${Date.now()}`;
+      try {
+        const rows = await sql`
+          INSERT INTO articles (
+            title, slug, category, keyword, html_content, meta_description,
+            schema_markup, featured_image_url, word_count, status, tone,
+            article_type, shopify_blog_tag, image_storyboard
+          ) VALUES (
+            ${title}, ${trySlug}, ${category || null}, ${keyword || null}, ${html_content}, ${meta_description || null},
+            ${schema_markup || null}, ${featured_image_url || null},
+            ${word_count || 0}, ${status}, ${tone || null},
+            ${article_type || null}, ${shopify_blog_tag || null}, ${image_storyboard || null}
+          )
+          RETURNING *
+        `;
+        savedArticle = rows[0];
+        break;
+      } catch (err: unknown) {
+        const pgError = err as { code?: string };
+        if (pgError.code === '23505' && attempt < 2) {
+          // Unique constraint violation — retry with timestamp suffix
+          console.warn(`[articles] Slug collision on "${trySlug}", retrying (attempt ${attempt + 1})`);
+          continue;
+        }
+        throw err;
+      }
     }
 
-    const articles = await sql`
-      INSERT INTO articles (
-        title, slug, category, keyword, html_content, meta_description,
-        schema_markup, featured_image_url, word_count, status, tone,
-        article_type, shopify_blog_tag, image_storyboard
-      ) VALUES (
-        ${title}, ${uniqueSlug}, ${category || null}, ${keyword || null}, ${html_content}, ${meta_description || null},
-        ${schema_markup || null}, ${featured_image_url || null},
-        ${word_count || 0}, ${status}, ${tone || null},
-        ${article_type || null}, ${shopify_blog_tag || null}, ${image_storyboard || null}
-      )
-      RETURNING *
-    `;
+    if (!savedArticle) {
+      return NextResponse.json(
+        { error: "Failed to generate unique slug after retries" },
+        { status: 409 }
+      );
+    }
+
+    const articles = [savedArticle];
 
     logActivity("Article saved", {
       category: "articles",

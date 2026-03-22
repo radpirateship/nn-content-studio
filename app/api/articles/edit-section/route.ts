@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callAI } from "@/lib/ai";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
+    const limit = rateLimit("edit-section", { windowMs: 60_000, max: 10 });
+    if (!limit.allowed) return rateLimitResponse(limit);
+
     const { sectionHtml, sectionType, editInstructions, articleContext } = await request.json();
 
     if (!sectionHtml || !editInstructions) {

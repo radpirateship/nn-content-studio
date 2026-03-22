@@ -2,9 +2,13 @@
 // Updated: 2026-02-19 — rebuilt fresh for Turbopack
 import { type NextRequest, NextResponse } from "next/server";
 import { callAI } from "@/lib/ai";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
+    const limit = rateLimit("scan-links", { windowMs: 60_000, max: 5 });
+    if (!limit.allowed) return rateLimitResponse(limit);
+
     const { htmlContent, internalLinks, collectionsLinks, articleTitle, articleKeyword } = await request.json();
 
     if (!htmlContent) {

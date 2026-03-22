@@ -3,6 +3,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { callAI } from "@/lib/ai"
 import { generateImageWithModel } from "@/lib/imageGeneration"
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit"
 
 export const maxDuration = 120
 
@@ -26,6 +27,9 @@ interface ImageStoryboardItem {
 
 export async function POST(request: NextRequest) {
   try {
+    const limit = rateLimit("revamp-images", { windowMs: 60_000, max: 3 })
+    if (!limit.allowed) return rateLimitResponse(limit)
+
     const body: ImageGenerateRequest = await request.json()
 
     const {

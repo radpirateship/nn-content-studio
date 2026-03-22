@@ -8,6 +8,7 @@ import { CATEGORY_LABELS } from "@/lib/nn-categories"
 import { NN_STYLES } from "@/lib/nn-template"
 import { logActivity } from "@/lib/activity-log"
 import { randomUUID } from "crypto"
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit"
 
 export const maxDuration = 60
 
@@ -445,6 +446,9 @@ ${refs.join("\n")}
 
 export async function POST(request: NextRequest) {
   try {
+    const limit = rateLimit("revamp-finalize", { windowMs: 60_000, max: 5 })
+    if (!limit.allowed) return rateLimitResponse(limit)
+
     const body: FinalizeRequest = await request.json()
 
     const {

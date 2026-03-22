@@ -279,13 +279,21 @@ function buildSchema(
   const faqHtml = sectionContent['faq'] || ''
   const faqPairs: Array<{ q: string; a: string }> = []
 
-  // Extract FAQ pairs from the nn-faq-item blocks
-  const faqRegex = /<button[^>]*class="nn-faq-q"[^>]*>([\s\S]*?)<\/button>[\s\S]*?<div[^>]*class="nn-faq-a"[^>]*>([\s\S]*?)<\/div>/gi
-  let match
-  while ((match = faqRegex.exec(faqHtml)) !== null && faqPairs.length < 5) {
-    const q = match[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
-    const a = match[2].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
-    if (q && a) faqPairs.push({ q, a })
+  // Extract FAQ pairs by splitting on the nn-faq-item markers rather than
+  // using a single regex with nested lazy quantifiers (which can cause
+  // catastrophic backtracking on malformed HTML with missing closing tags).
+  const faqItemChunks = faqHtml.split(/class="nn-faq-item"/)
+  for (let i = 1; i < faqItemChunks.length && faqPairs.length < 5; i++) {
+    const chunk = faqItemChunks[i]
+    // Extract question text between nn-faq-q button tags
+    const qMatch = chunk.match(/<button[^>]*class="nn-faq-q"[^>]*>([\s\S]*?)<\/button>/)
+    // Extract answer text between nn-faq-a div tags
+    const aMatch = chunk.match(/<div[^>]*class="nn-faq-a"[^>]*>([\s\S]*?)<\/div>/)
+    if (qMatch && aMatch) {
+      const q = qMatch[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+      const a = aMatch[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+      if (q && a) faqPairs.push({ q, a })
+    }
   }
 
   const products = guide.selected_products || []

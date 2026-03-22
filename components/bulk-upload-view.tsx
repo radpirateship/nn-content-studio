@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { toast } from 'sonner'
 import { Layers, Upload, FileSpreadsheet, Plus, Trash2, Play, Loader2, Check, AlertCircle, X, Download, Eye, RotateCcw, Send, ArrowLeft, Circle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { GeneratedArticle, Product } from '@/lib/types'
@@ -129,16 +130,26 @@ export function BulkUploadView({
       const getCol = (parts: string[], idx: number) => idx >= 0 ? (parts[idx] || '').trim() : ''
 
       const newItems: BulkItem[] = []
+      let skippedRows = 0
 
       for (let i = startIdx; i < lines.length && i < 51; i++) {
         const parts = parseLine(lines[i])
         if (parts.length >= 2) {
+          const title = (parts[col.title] || '').trim()
+          const keyword = (parts[col.keyword] || '').trim()
+
+          // Skip rows with empty title or keyword — they'll fail at generation time
+          if (!title || !keyword) {
+            skippedRows++
+            continue
+          }
+
           const rawWordCount = getCol(parts, col.wordCount).replace(/,/g, '')
           const rawComparison = getCol(parts, col.includeComparisonTable).toLowerCase()
           newItems.push({
             id: `bulk-${Date.now()}-${i}`,
-            title: parts[col.title] || '',
-            keyword: parts[col.keyword] || '',
+            title,
+            keyword,
             collection: parts[col.collection] || '',
             articleType: getCol(parts, col.articleType) || undefined,
             audience: getCol(parts, col.audience) || undefined,
@@ -157,6 +168,10 @@ export function BulkUploadView({
 
       if (newItems.length > 0) {
         setItems(prev => [...prev, ...newItems])
+      }
+
+      if (skippedRows > 0) {
+        toast.warning(`Skipped ${skippedRows} row${skippedRows > 1 ? 's' : ''} with missing title or keyword`)
       }
     }
     reader.readAsText(file)

@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { callAI } from '@/lib/ai'
+import { rateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 export const maxDuration = 120
 
@@ -96,6 +97,9 @@ Rules:
 
 export async function POST(request: NextRequest) {
   try {
+    const limit = rateLimit("guide-select-products", { windowMs: 60_000, max: 5 })
+    if (!limit.allowed) return rateLimitResponse(limit)
+
     const body = await request.json()
     const {
       guideTitle,

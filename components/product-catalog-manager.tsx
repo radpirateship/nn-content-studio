@@ -202,7 +202,8 @@ export function ProductCatalogManager({ onProductsLoaded }: ProductCatalogManage
         const vendor = getHeaderValue(row, ['Vendor', 'vendor'])
         const productType = getHeaderValue(row, ['Product Type', 'Type', 'productType', 'category', 'Category'])
         const tags = getHeaderValue(row, ['Tags', 'tags'])
-        const imageUrl = getHeaderValue(row, ['Image Src', 'imageUrl', 'Image Url', 'image_url', 'url', 'URL'])
+        const imageUrl = getHeaderValue(row, ['Image Src', 'imageUrl', 'Image Url', 'image_url'])
+        const productUrl = getHeaderValue(row, ['url', 'URL', 'product_url', 'Product URL'])
         const status = getHeaderValue(row, ['Status', 'status']) || 'active'
         const inventoryQty = getHeaderValue(row, ['Total Inventory Qty', 'Variant Inventory Qty', 'inventoryQty', 'inventory_qty'])
 
@@ -226,7 +227,7 @@ export function ProductCatalogManager({ onProductsLoaded }: ProductCatalogManage
           imageUrl,
           status,
           inventoryQty,
-          url: imageUrl,
+          url: productUrl,
         })
       }
 

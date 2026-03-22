@@ -66,14 +66,40 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ reviews: reviewMap });
     }
 
-    const rows = await sql`
-      SELECT id, shopify_article_id, handle, title, status, notes, reviewed_at, created_at
-      FROM workshop_reviews
-      ORDER BY reviewed_at DESC NULLS LAST, created_at DESC
-      LIMIT 500
-    `;
+    // Paginated listing — supports ?page=1&limit=50 (defaults: page 1, limit 50, max 200)
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(searchParams.get("limit") || "50", 10) || 50));
+    const offset = (page - 1) * limit;
+    const statusFilter = searchParams.get("status"); // optional: "approved", "needs_work", "not_reviewed"
 
-    return NextResponse.json({ reviews: rows });
+    let rows;
+    let countResult;
+
+    if (statusFilter && ["not_reviewed", "approved", "needs_work"].includes(statusFilter)) {
+      rows = await sql`
+        SELECT id, shopify_article_id, handle, title, status, notes, reviewed_at, created_at
+        FROM workshop_reviews
+        WHERE status = ${statusFilter}
+        ORDER BY reviewed_at DESC NULLS LAST, created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+      countResult = await sql`SELECT COUNT(*) as total FROM workshop_reviews WHERE status = ${statusFilter}`;
+    } else {
+      rows = await sql`
+        SELECT id, shopify_article_id, handle, title, status, notes, reviewed_at, created_at
+        FROM workshop_reviews
+        ORDER BY reviewed_at DESC NULLS LAST, created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+      countResult = await sql`SELECT COUNT(*) as total FROM workshop_reviews`;
+    }
+
+    const total = Number(countResult[0]?.total || 0);
+
+    return NextResponse.json({
+      reviews: rows,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    });
   } catch (error) {
     console.error("[workshop/reviews] GET error:", error);
     return NextResponse.json(

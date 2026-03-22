@@ -227,6 +227,7 @@ export async function GET(request: NextRequest) {
       });
     }
   }
+  const totalBeforeLimit = products.length;
   if (search && products.length > 0) {
     const searchTerms = extractSearchTerms(search);
     if (searchTerms.length > 0) products = selectRelevantProducts(products, searchTerms, maxItems);
@@ -234,7 +235,7 @@ export async function GET(request: NextRequest) {
     products = products.map(p => ({ product: p, sort: (p.imageUrl ? 100 : 0) + (p.price ? 10 : 0) + Math.random() * 5 }))
       .sort((a, b) => b.sort - a.sort).slice(0, maxItems).map(s => s.product);
   }
-  return NextResponse.json({ products: products.slice(0, maxItems), total: products.length, categories: productStore.getCategories() });
+  return NextResponse.json({ products: products.slice(0, maxItems), total: totalBeforeLimit, categories: productStore.getCategories() });
 }
 
 export async function POST(request: NextRequest) {

@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { callAI } from '@/lib/ai'
+import { rateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 /**
  * POST /api/ultimate-guides/draft-image-prompts
@@ -26,6 +27,9 @@ const ELIGIBLE_SECTION_IDS = [
 
 export async function POST(request: NextRequest) {
   try {
+    const limit = rateLimit("guide-draft-images", { windowMs: 60_000, max: 5 })
+    if (!limit.allowed) return rateLimitResponse(limit)
+
     const { htmlContent, guideTitle, topicShort, collectionSlug } = await request.json()
 
     if (!htmlContent) {

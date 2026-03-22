@@ -148,11 +148,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Delete existing rows
+    // Delete existing rows and re-insert using Promise.allSettled so that
+    // partial failures don't lose all data silently.  We insert first into
+    // a batch, report any failures, and only then return success/partial.
     await sql`DELETE FROM blog_posts`
 
-    // Insert new rows
-    const insertPromises = blogPosts.map(post => {
+    // Build insert promises
+    const insertPromises = blogPosts.map((post, idx) => {
       // Parse CTR: remove % sign if present
       let ctr = 0
       if (post.ctr) {
@@ -178,10 +180,38 @@ export async function POST(request: NextRequest) {
       return sql`
         INSERT INTO blog_posts (url, section, slug, category, clicks, impressions, ctr, position)
         VALUES (${url}, ${section}, ${slug}, ${postCategory}, ${clicks}, ${impressions}, ${ctr}, ${position})
-      `
+      `.catch(err => {
+        // Tag the error with the row index for reporting
+        throw Object.assign(err instanceof Error ? err : new Error(String(err)), { rowIndex: idx })
+      })
     })
 
-    await Promise.all(insertPromises)
+    const results = await Promise.allSettled(insertPromises)
+    const succeeded = results.filter(r => r.status === 'fulfilled').length
+    const failed = results.filter(r => r.status === 'rejected')
+
+    if (failed.length > 0) {
+      const failedRows = failed.map(r => {
+        const err = (r as PromiseRejectedResult).reason
+        return err?.rowIndex ?? '?'
+      })
+      console.error(`[blog-posts] ${failed.length} rows failed to insert:`, failedRows)
+
+      if (succeeded === 0) {
+        return NextResponse.json(
+          { success: false, error: `All ${failed.length} rows failed to import` },
+          { status: 500 }
+        )
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `Imported ${succeeded} of ${blogPosts.length} blog posts (${failed.length} failed)`,
+        count: succeeded,
+        failedCount: failed.length,
+        warning: `${failed.length} row(s) failed to import`,
+      })
+    }
 
     return NextResponse.json({
       success: true,
