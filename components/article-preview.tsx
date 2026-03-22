@@ -14,12 +14,18 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion'
-import { 
-  Eye, 
-  Code, 
-  FileText, 
-  Download, 
-  Copy, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Eye,
+  Code,
+  FileText,
+  Download,
+  Copy,
   Check,
   ExternalLink,
   ShoppingBag,
@@ -32,6 +38,11 @@ import {
   AlertCircle,
   Link2,
   Trash2,
+  Sparkles,
+  PackageSearch,
+  Plus,
+  X,
+  Save,
   } from 'lucide-react'
 import type { GeneratedArticle } from '@/lib/types'
 import { CATEGORY_LABELS } from '@/lib/types'
@@ -57,6 +68,151 @@ import { buildShopifyTags } from '@/lib/tagMapping'
   const [publishResult, setPublishResult] = useState<{ url?: string; error?: string } | null>(null)
   const [featuredImageUrl, setFeaturedImageUrl] = useState(article.featuredImage?.url || '')
   const [featuredImageInput, setFeaturedImageInput] = useState(article.featuredImage?.url || '')
+
+  // Product management state
+  const [articleProducts, setArticleProducts] = useState<typeof article.products>(article.products || [])
+  const [isSavingProducts, setIsSavingProducts] = useState(false)
+  const [productSaveStatus, setProductSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle')
+  const [isAutoSelecting, setIsAutoSelecting] = useState(false)
+  const [showProductPicker, setShowProductPicker] = useState(false)
+  const [pickerProducts, setPickerProducts] = useState<Array<Record<string, string>>>([])
+  const [pickerLoading, setPickerLoading] = useState(false)
+  const [pickerSearch, setPickerSearch] = useState('')
+  const [pickerSelectedIds, setPickerSelectedIds] = useState<Set<string>>(new Set())
+
+  const autoSelectProducts = async () => {
+    setIsAutoSelecting(true)
+    try {
+      const params = new URLSearchParams()
+      if (article.category) params.set('category', article.category)
+      if (article.keyword) params.set('search', article.keyword)
+      params.set('limit', '6')
+      const res = await fetch(`/api/products?${params}`)
+      if (res.ok) {
+        const data = await res.json()
+        const mapped = (data.products || []).map((p: Record<string, string>) => ({
+          id: p.id || p.handle || '',
+          handle: p.handle || '',
+          title: p.title || '',
+          description: p.description || '',
+          vendor: p.vendor || '',
+          productType: p.productType || p.category || '',
+          tags: [],
+          price: p.price || '',
+          compareAtPrice: p.compareAtPrice || '',
+          imageUrl: p.imageUrl || '',
+          url: p.url || '',
+          category: (p.category || '') as typeof article.category,
+          isAvailable: true,
+        }))
+        setArticleProducts(mapped)
+        setProductSaveStatus('idle')
+      }
+    } finally {
+      setIsAutoSelecting(false)
+    }
+  }
+
+  const openProductPicker = async () => {
+    setShowProductPicker(true)
+    setPickerSearch('')
+    setPickerSelectedIds(new Set(articleProducts.map(p => p.id || p.handle)))
+    if (pickerProducts.length === 0) {
+      setPickerLoading(true)
+      try {
+        const res = await fetch('/api/products?limit=500')
+        if (res.ok) {
+          const data = await res.json()
+          setPickerProducts(data.products || [])
+        }
+      } finally {
+        setPickerLoading(false)
+      }
+    }
+  }
+
+  const togglePickerProduct = (p: Record<string, string>) => {
+    const key = p.id || p.handle
+    setPickerSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  const confirmPickerSelection = () => {
+    const selected = pickerProducts
+      .filter(p => pickerSelectedIds.has(p.id || p.handle))
+      .map(p => ({
+        id: p.id || p.handle || '',
+        handle: p.handle || '',
+        title: p.title || '',
+        description: p.description || '',
+        vendor: p.vendor || '',
+        productType: p.productType || p.category || '',
+        tags: [],
+        price: p.price || '',
+        compareAtPrice: p.compareAtPrice || '',
+        imageUrl: p.imageUrl || '',
+        url: p.url || '',
+        category: (p.category || '') as typeof article.category,
+        isAvailable: true,
+      }))
+    setArticleProducts(selected)
+    setShowProductPicker(false)
+    setProductSaveStatus('idle')
+  }
+
+  const removeProduct = (id: string) => {
+    setArticleProducts(prev => prev.filter(p => (p.id || p.handle) !== id))
+    setProductSaveStatus('idle')
+  }
+
+  const saveProducts = async () => {
+    if (!article.dbId) return
+    setIsSavingProducts(true)
+    try {
+      const res = await fetch('/api/articles', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: article.dbId,
+          products: articleProducts.map(p => ({
+            id: p.id,
+            handle: p.handle,
+            title: p.title,
+            description: p.description,
+            vendor: p.vendor,
+            productType: p.productType,
+            tags: Array.isArray(p.tags) ? p.tags.join(', ') : (p.tags || ''),
+            price: p.price,
+            compareAtPrice: p.compareAtPrice,
+            imageUrl: p.imageUrl,
+            url: p.url,
+          })),
+        }),
+      })
+      if (res.ok) {
+        onContentUpdate?.(article.htmlContent, { products: articleProducts })
+        setProductSaveStatus('saved')
+        setTimeout(() => setProductSaveStatus('idle'), 3000)
+      } else {
+        setProductSaveStatus('error')
+      }
+    } catch {
+      setProductSaveStatus('error')
+    } finally {
+      setIsSavingProducts(false)
+    }
+  }
+
+  const filteredPickerProducts = pickerProducts.filter(p =>
+    !pickerSearch ||
+    p.title?.toLowerCase().includes(pickerSearch.toLowerCase()) ||
+    p.category?.toLowerCase().includes(pickerSearch.toLowerCase()) ||
+    p.vendor?.toLowerCase().includes(pickerSearch.toLowerCase())
+  )
 
   const publishToShopify = async () => {
     setIsPublishing(true)
@@ -608,42 +764,184 @@ import { buildShopifyTags } from '@/lib/tagMapping'
           </TabsContent>
 
           {/* Products Tab */}
-          <TabsContent value="products" className="mt-0">
-            <div className="grid gap-4 sm:grid-cols-2">
-              {(article.products || []).map((product) => (
-                <Card key={product.id} className="border-border/50">
-                  <CardContent className="flex gap-4 p-4">
-                    {product.imageUrl && (
+          <TabsContent value="products" className="mt-0 space-y-4">
+            {/* Toolbar */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={autoSelectProducts}
+                disabled={isAutoSelecting}
+              >
+                {isAutoSelecting
+                  ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  : <Sparkles className="mr-1.5 h-3.5 w-3.5" />}
+                Auto-select
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openProductPicker}
+              >
+                <PackageSearch className="mr-1.5 h-3.5 w-3.5" />
+                Browse catalog
+              </Button>
+              <div className="flex-1" />
+              {productSaveStatus === 'saved' && (
+                <span className="text-xs text-green-600 flex items-center gap-1">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Saved
+                </span>
+              )}
+              {productSaveStatus === 'error' && (
+                <span className="text-xs text-destructive flex items-center gap-1">
+                  <AlertCircle className="h-3.5 w-3.5" /> Save failed
+                </span>
+              )}
+              <Button
+                size="sm"
+                onClick={saveProducts}
+                disabled={isSavingProducts || !article.dbId}
+              >
+                {isSavingProducts
+                  ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  : <Save className="mr-1.5 h-3.5 w-3.5" />}
+                Save
+              </Button>
+            </div>
+
+            {/* Auto-select context hint */}
+            {isAutoSelecting && (
+              <p className="text-xs text-muted-foreground">
+                Finding products matching <strong>{article.keyword}</strong> in <strong>{article.category}</strong>…
+              </p>
+            )}
+
+            {/* Product cards */}
+            <div className="grid gap-3 sm:grid-cols-2">
+              {articleProducts.map((product) => (
+                <Card key={product.id || product.handle} className="border-border/50">
+                  <CardContent className="flex gap-3 p-3">
+                    {product.imageUrl ? (
                       <img
-                        src={product.imageUrl || "/placeholder.svg"}
+                        src={product.imageUrl}
                         alt={product.title}
-                        className="h-20 w-20 rounded-lg object-cover"
+                        className="h-16 w-16 rounded-md object-cover shrink-0"
                       />
+                    ) : (
+                      <div className="flex h-16 w-16 items-center justify-center rounded-md bg-muted shrink-0">
+                        <ShoppingBag className="h-5 w-5 text-muted-foreground" />
+                      </div>
                     )}
-                    <div className="flex-1 space-y-1">
-                      <h4 className="font-medium leading-tight">{product.title}</h4>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {product.description}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-primary">{product.price}</span>
-                        <Button variant="ghost" size="sm" asChild>
-                          <a href={product.url} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="mr-1 h-3 w-3" />
-                            View
-                          </a>
-                        </Button>
+                    <div className="flex-1 min-w-0 space-y-0.5">
+                      <h4 className="text-sm font-medium leading-tight truncate">{product.title}</h4>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{product.description}</p>
+                      <div className="flex items-center justify-between pt-0.5">
+                        <span className="text-xs font-semibold text-primary">${product.price}</span>
+                        <div className="flex gap-1">
+                          {product.url && (
+                            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" asChild>
+                              <a href={product.url} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                            onClick={() => removeProduct(product.id || product.handle)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               ))}
-              {(!article.products || article.products.length === 0) && (
-                <p className="col-span-2 py-8 text-center text-muted-foreground">
-                  No products recommended for this article.
-                </p>
+              {articleProducts.length === 0 && (
+                <div className="col-span-2 py-10 text-center text-muted-foreground space-y-2">
+                  <ShoppingBag className="h-8 w-8 mx-auto opacity-30" />
+                  <p className="text-sm">No products on this article yet.</p>
+                  <p className="text-xs">Use <strong>Auto-select</strong> to find relevant products, or <strong>Browse catalog</strong> to pick manually.</p>
+                </div>
               )}
             </div>
+
+            {/* Product Picker Dialog */}
+            <Dialog open={showProductPicker} onOpenChange={setShowProductPicker}>
+              <DialogContent className="max-w-xl">
+                <DialogHeader>
+                  <DialogTitle>Browse product catalog</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div className="relative">
+                    <PackageSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search products..."
+                      value={pickerSearch}
+                      onChange={e => setPickerSearch(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {pickerSelectedIds.size} selected
+                  </p>
+                  <ScrollArea className="h-80 rounded-lg border border-border/50">
+                    {pickerLoading ? (
+                      <div className="flex items-center justify-center py-12">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-border/50">
+                        {filteredPickerProducts.map(p => {
+                          const key = p.id || p.handle
+                          const selected = pickerSelectedIds.has(key)
+                          return (
+                            <button
+                              key={key}
+                              onClick={() => togglePickerProduct(p)}
+                              className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/40 ${selected ? 'bg-primary/5' : ''}`}
+                            >
+                              <div className={`h-4 w-4 rounded border shrink-0 flex items-center justify-center transition-colors ${selected ? 'bg-primary border-primary' : 'border-border'}`}>
+                                {selected && <Check className="h-3 w-3 text-primary-foreground" />}
+                              </div>
+                              {p.imageUrl ? (
+                                <img src={p.imageUrl} alt={p.title} className="h-9 w-9 rounded object-cover shrink-0" />
+                              ) : (
+                                <div className="h-9 w-9 rounded bg-muted shrink-0 flex items-center justify-center">
+                                  <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{p.title}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {p.price ? `$${p.price}` : ''}
+                                  {p.price && p.category ? ' · ' : ''}
+                                  {(p.category || '').replace(/-/g, ' ')}
+                                </p>
+                              </div>
+                            </button>
+                          )
+                        })}
+                        {filteredPickerProducts.length === 0 && (
+                          <p className="py-8 text-center text-sm text-muted-foreground">No products found</p>
+                        )}
+                      </div>
+                    )}
+                  </ScrollArea>
+                  <div className="flex justify-end gap-2 pt-1">
+                    <Button variant="outline" size="sm" onClick={() => setShowProductPicker(false)}>
+                      Cancel
+                    </Button>
+                    <Button size="sm" onClick={confirmPickerSelection}>
+                      <Plus className="mr-1.5 h-3.5 w-3.5" />
+                      Add {pickerSelectedIds.size > 0 ? `${pickerSelectedIds.size} ` : ''}products
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
         </Tabs>
       </CardContent>

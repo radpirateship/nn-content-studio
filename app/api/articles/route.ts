@@ -169,6 +169,10 @@ export async function PUT(request: NextRequest) {
 
     // Build dynamic update query
     // Use parameterized query for safety
+    const productsJson = updates.products !== undefined
+      ? JSON.stringify(updates.products ?? [])
+      : null;
+
     const articles = await sql`
       UPDATE articles
       SET
@@ -186,6 +190,7 @@ export async function PUT(request: NextRequest) {
         article_type = COALESCE(${updates.article_type ?? null}, article_type),
         shopify_blog_tag = COALESCE(${updates.shopify_blog_tag ?? null}, shopify_blog_tag),
         image_storyboard = COALESCE(${updates.image_storyboard ?? null}, image_storyboard),
+        products = COALESCE(${productsJson}::jsonb, products),
         updated_at = NOW()
       WHERE id = ${id}
       RETURNING *

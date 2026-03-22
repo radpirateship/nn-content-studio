@@ -471,7 +471,18 @@ export function ProductCatalogManager({ onProductsLoaded }: ProductCatalogManage
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate leading-tight">{product.title}</p>
+                      {product.url ? (
+                        <a
+                          href={product.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm font-medium truncate leading-tight hover:underline block"
+                        >
+                          {product.title}
+                        </a>
+                      ) : (
+                        <p className="text-sm font-medium truncate leading-tight">{product.title}</p>
+                      )}
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {product.price ? `$${product.price}` : ''}
                         {product.price && product.vendor ? ' · ' : ''}

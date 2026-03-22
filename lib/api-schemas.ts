@@ -150,6 +150,7 @@ export const updateArticleSchema = z
     article_type: nullableOptionalString,
     shopify_blog_tag: nullableOptionalString,
     image_storyboard: nullableJsonRecord,
+    products: z.array(productInputSchema).nullable().optional(),
   })
   .refine((body) => body.id !== undefined && body.id !== null && String(body.id).trim().length > 0, {
     message: "id is required",
