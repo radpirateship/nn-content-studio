@@ -3,6 +3,7 @@ import { getSQL } from "@/lib/db";
 import { generateImageWithModel, type ImageModel, IMAGE_MODEL_LABELS } from "@/lib/imageGeneration";
 import { extractImageUrl } from "@/lib/imageUtils";
 import { uploadDataUriToShopify } from "@/lib/shopifyImageUpload";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import sharp from "sharp"; // FIX: Static import so Vercel bundles the native Sharp binary correctly.
                            // Dynamic import with webpackIgnore fails on Vercel serverless functions.
 
@@ -116,6 +117,10 @@ function extractSectionPrompts(
  *   5. Insert permanent cdn.shopify.com URLs into the article HTML
  */
 export async function POST(request: NextRequest) {
+  // Rate limit: 3 image generation batches per minute
+  const limit = rateLimit("add-images", { windowMs: 60_000, max: 3 });
+  if (!limit.allowed) return rateLimitResponse(limit);
+
   try {
     const { articleId, htmlContent, category } = await request.json();
 
@@ -143,6 +148,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         htmlContent,
         imageCount: 0,
+        generationAttempts: 0,
+        generationFailures: 0,
         message: "No eligible article sections found for images.",
         success: true,
       });
@@ -180,6 +187,8 @@ export async function POST(request: NextRequest) {
       altText: string;
       provider: string;
     }[] = [];
+    let generationFailures = 0;
+    const generationAttempts = sectionPrompts.length;
 
     for (let i = 0; i < sectionPrompts.length; i++) {
       if (i > 0) await delay(1500);
@@ -233,6 +242,7 @@ export async function POST(request: NextRequest) {
           console.log(`[add-images] ${imageLabel} generated and compressed ✓`);
         } else {
           console.error(`[add-images] ${imageLabel} failed after retry — skipping`);
+          generationFailures++;
         }
       } catch (err) {
         // Catch timeout or unexpected errors — log and continue to next image
@@ -240,6 +250,7 @@ export async function POST(request: NextRequest) {
           `[add-images] ${imageLabel} error (continuing to next):`,
           err instanceof Error ? err.message : err
         );
+        generationFailures++;
       }
     }
 
@@ -347,14 +358,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Determine overall success and build warnings
+    const allGenerationsFailed = insertedCount === 0 && generationAttempts > 0;
+    const allFallbackToBase64 = fallbackCount > 0 && uploadedCount === 0 && insertedCount > 0;
+    const warnings: string[] = [];
+    if (allFallbackToBase64) {
+      warnings.push("All images are using temporary data URIs because Shopify upload failed. Re-publish to get permanent CDN URLs.");
+    }
+    if (dbSaved === false) {
+      warnings.push("Images were inserted into the HTML but the database update failed. Your changes may not persist after refresh.");
+    }
+
     return NextResponse.json({
       htmlContent: enrichedHTML,
       imageCount: insertedCount,
       uploadedToCDN: uploadedCount,
       fallbackBase64: fallbackCount,
+      generationAttempts,
+      generationFailures,
       model: imageModel,
-      success: true,
-      ...(dbSaved === false && { warning: "Images were inserted into the HTML but the database update failed. Your changes may not persist after refresh." }),
+      success: !allGenerationsFailed,
+      ...(warnings.length > 0 && { warning: warnings.join(" ") }),
+      ...(allGenerationsFailed && {
+        error: `All ${generationAttempts} image generation attempts failed. Check your Gemini API key and try again.`,
+      }),
     });
   } catch (error) {
     console.error("[add-images] Fatal error:", error);

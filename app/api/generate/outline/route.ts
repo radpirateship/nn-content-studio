@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { callAI } from "@/lib/ai";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import type { ArticleOutline } from "@/lib/types";
 
 /**
@@ -9,6 +10,10 @@ import type { ArticleOutline } from "@/lib/types";
  * Uses callAI with "SEO content strategist" persona for Naked Nutrition.
  */
 export async function POST(request: NextRequest) {
+  // Rate limit: 5 outline generations per minute
+  const limit = rateLimit("generate-outline", { windowMs: 60_000, max: 5 });
+  if (!limit.allowed) return rateLimitResponse(limit);
+
   try {
     const { title, keyword, category } = await request.json();
 

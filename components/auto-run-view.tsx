@@ -195,7 +195,8 @@ export function AutoRunView({
             newArticle.htmlContent = linkData.htmlContent
             newArticle.hasInternalLinks = true
             newArticle.linkCount = linkData.linkCount
-            updateStep('links', { status: 'done', detail: `${linkData.linkCount} links inserted` })
+            const warn = linkData.warning ? ' (DB save failed — may not persist)' : ''
+            updateStep('links', { status: 'done', detail: `${linkData.linkCount} links inserted${warn}` })
           } else {
             updateStep('links', { status: 'error', detail: 'Failed, continuing...' })
           }
@@ -225,7 +226,8 @@ export function AutoRunView({
           newArticle.htmlContent = imageData.htmlContent
           newArticle.hasImages = true
           newArticle.imageCount = imageData.imageCount
-          updateStep('images', { status: 'done', detail: `${imageData.imageCount} images generated with Gemini` })
+          const warn = imageData.warning ? ' (DB save failed — may not persist)' : ''
+          updateStep('images', { status: 'done', detail: `${imageData.imageCount} images generated with Gemini${warn}` })
         } else {
           updateStep('images', { status: 'error', detail: 'Failed, continuing...' })
         }

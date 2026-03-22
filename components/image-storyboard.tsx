@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -260,6 +261,7 @@ export function ImageStoryboard({
     } catch (error) {
       console.error('Generate image failed:', error)
       const message = error instanceof Error ? error.message : 'Image generation failed.'
+      toast.error('Image generation failed', { description: message })
       const nextConcepts = concepts.map(c => (
         c.id === conceptId
           ? { ...c, status: 'error' as const, errorMessage: message }
@@ -326,6 +328,7 @@ export function ImageStoryboard({
           }
         } catch (e) {
           console.error('[image-storyboard] Featured image Shopify upload failed:', e)
+          toast.warning('Featured image upload to Shopify failed', { description: 'Using temporary URL — re-upload before publishing.' })
         }
       }
 
@@ -346,9 +349,11 @@ export function ImageStoryboard({
             }
           } else {
             console.error(`[image-storyboard] Shopify upload failed for "${img.label?.slice(0, 40)}" — using original URL`)
+            toast.warning(`Shopify upload failed for "${img.label?.slice(0, 30)}"`, { description: 'Using temporary URL — this image should be re-uploaded before publishing.' })
           }
         } catch (e) {
           console.error(`[image-storyboard] Shopify upload error for "${img.label?.slice(0, 40)}":`, e)
+          toast.warning(`Shopify upload error for "${img.label?.slice(0, 30)}"`, { description: 'Using temporary URL.' })
         }
       }
 

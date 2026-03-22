@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -129,10 +130,15 @@ export function LinkReviewer({
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to apply links')
 
+      if (data.warning) {
+        toast.warning('Links applied with warning', { description: data.warning })
+      }
+
       setAppliedCount(data.linkCount)
       onApplyLinks(data.htmlContent, data.linkCount)
     } catch (error) {
       console.error('Failed to apply links:', error)
+      toast.error('Failed to apply links', { description: error instanceof Error ? error.message : 'An unexpected error occurred' })
     } finally {
       setIsApplying(false)
     }

@@ -1,8 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { callAI } from "@/lib/ai";
 import { logActivity } from "@/lib/activity-log";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  // Rate limit: 5 revamp analyses per minute
+  const limit = rateLimit("revamp-analyze", { windowMs: 60_000, max: 5 });
+  if (!limit.allowed) return rateLimitResponse(limit);
+
   try {
     const { existingContent, citations, category, keyword } = await request.json();
 
@@ -68,13 +73,13 @@ Return ONLY the JSON object, no additional text or markdown fences.`;
         category: "revamp",
         detail: keyword,
       });
-      return NextResponse.json({ analysis });
+      return NextResponse.json({ success: true, analysis });
     } catch {
       logActivity("Article analyzed", {
         category: "revamp",
         detail: keyword,
       });
-      return NextResponse.json({ analysis: result });
+      return NextResponse.json({ success: true, analysis: result });
     }
   } catch (error) {
     console.error("[revamp/analyze] Error:", error);

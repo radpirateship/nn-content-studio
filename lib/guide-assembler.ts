@@ -11,6 +11,7 @@
  */
 
 import { upgradeImagesToPicture } from './imageUtils'
+import { escapeHtml, escapeAttr } from './html-utils'
 
 export interface AssemblerProduct {
   title: string
@@ -378,26 +379,26 @@ function buildProductCards(products: AssemblerProduct[]): string {
     const badgeClass = isUpgrade ? 'badge-upgrade' : 'badge-value'
     const isFeatured = isUpgrade ? ' nn-card-featured' : ''
     const price = typeof p.price === 'number' ? p.price.toLocaleString('en-US', { minimumFractionDigits: 0 }) : p.price
-    const subcatLabel = p.selected_subcategory ? `<div class="spec-item"><span class="spec-label">Category:</span><span class="spec-value">${p.selected_subcategory}</span></div>` : ''
+    const subcatLabel = p.selected_subcategory ? `<div class="spec-item"><span class="spec-label">Category:</span><span class="spec-value">${escapeHtml(p.selected_subcategory)}</span></div>` : ''
 
     return `<div class="nn-card${isFeatured}">
   <div class="card-badge-container">
     <span class="card-badge ${badgeClass}">${badgeLabel}</span>
   </div>
   <div class="card-image">
-    <img width="800" height="450" loading="lazy" alt="${p.title}" src="${p.image_url}">
+    <img width="800" height="450" loading="lazy" alt="${escapeAttr(p.title)}" src="${escapeAttr(p.image_url)}">
   </div>
   <div class="card-content">
-    <h3 class="card-title">${p.title}</h3>
+    <h3 class="card-title">${escapeHtml(p.title)}</h3>
     <div class="card-price">$${price}</div>
     <div class="card-specs">
       <div class="spec-item">
         <span class="spec-label">Brand:</span>
-        <span class="spec-value">${p.vendor}</span>
+        <span class="spec-value">${escapeHtml(p.vendor)}</span>
       </div>
       ${subcatLabel}
     </div>
-    <a class="nn-button" href="/products/${p.handle}" style="margin-top:auto;">View Product</a>
+    <a class="nn-button" href="/products/${escapeAttr(p.handle)}" style="margin-top:auto;">View Product</a>
   </div>
 </div>`
   }).join('\n')
@@ -417,8 +418,8 @@ function buildInternalLinksGrid(
   if (links.length === 0) return ''
 
   const cards = links.map(l => {
-    const href = l.slug ? `/blogs/news/${l.slug}` : (l.url || '#')
-    const title = l.title || l.anchor || href
+    const href = l.slug ? `/blogs/news/${escapeAttr(l.slug)}` : escapeAttr(l.url || '#')
+    const title = escapeHtml(l.title || l.anchor || l.slug || l.url || '#')
     return `<a class="link-card" href="${href}">
   <h3>${title}</h3>
 </a>`
@@ -442,10 +443,10 @@ function buildRelatedGuidesSection(
   if (relatedGuides.length === 0) return ''
 
   const cards = relatedGuides.map(g => {
-    const href = g.slug.startsWith('/') ? g.slug : `/pages/${g.slug}`
+    const href = g.slug.startsWith('/') ? escapeAttr(g.slug) : `/pages/${escapeAttr(g.slug)}`
     return `<a class="related-guide-card" href="${href}">
-  <h3>${g.title}</h3>
-  ${g.description ? `<p>${g.description}</p>` : ''}
+  <h3>${escapeHtml(g.title)}</h3>
+  ${g.description ? `<p>${escapeHtml(g.description)}</p>` : ''}
 </a>`
   }).join('\n')
 
@@ -563,8 +564,8 @@ export function assembleCompleteGuideHtml(
 
   // ── Hero image or H1 ────────────────────────────────────────────────────────
   const heroContent = heroImageUrl
-    ? `<img loading="eager" width="1200" height="675" style="width:100%;height:auto;display:block;border-radius:8px;margin-bottom:1.5em;" alt="${guide.title}" src="${heroImageUrl}">`
-    : `<h1>${guide.title}</h1>`
+    ? `<img loading="eager" width="1200" height="675" style="width:100%;height:auto;display:block;border-radius:8px;margin-bottom:1.5em;" alt="${escapeAttr(guide.title)}" src="${escapeAttr(heroImageUrl)}">`
+    : `<h1>${escapeHtml(guide.title)}</h1>`
 
   // ── Content sections ─────────────────────────────────────────────────────────
   const productCardsHtml = buildProductCards(products)
@@ -637,8 +638,8 @@ ${schemaHtml}
   <div class="container">
     <ol>
       <li><a href="/">Home</a></li>
-      <li><a href="/collections/${breadcrumbL2Slug}">${breadcrumbL2Name}</a></li>
-      <li><span aria-current="page">${topicShort} Guide</span></li>
+      <li><a href="/collections/${escapeAttr(breadcrumbL2Slug)}">${escapeHtml(breadcrumbL2Name)}</a></li>
+      <li><span aria-current="page">${escapeHtml(topicShort)} Guide</span></li>
     </ol>
   </div>
 </nav>
@@ -678,9 +679,9 @@ ${relatedGuidesHtml}
 <section class="final-cta">
   <div class="container">
     <div class="cta-box">
-      <h2>Ready to Experience ${topicFull}?</h2>
-      <p>Explore our complete selection of ${topicShortPlural.toLowerCase()} and find the right model for your home or facility. Every product is backed by our expert guidance and ships direct.</p>
-      <a class="nn-button nn-button-large" href="/collections/${collectionSlug}">Shop ${topicShortPlural}</a>
+      <h2>Ready to Experience ${escapeHtml(topicFull)}?</h2>
+      <p>Explore our complete selection of ${escapeHtml(topicShortPlural.toLowerCase())} and find the right model for your home or facility. Every product is backed by our expert guidance and ships direct.</p>
+      <a class="nn-button nn-button-large" href="/collections/${escapeAttr(collectionSlug)}">Shop ${escapeHtml(topicShortPlural)}</a>
     </div>
   </div>
 </section>

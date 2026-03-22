@@ -112,11 +112,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Update database if articleId provided
+    let dbSaved = true;
     if (articleId && linksApplied > 0) {
       try {
         const sql = getSQL();
         await sql`
-          UPDATE articles 
+          UPDATE articles
           SET html_content = ${enrichedHTML},
               has_internal_links = true,
               link_count = ${linksApplied},
@@ -125,6 +126,7 @@ export async function POST(request: NextRequest) {
         `;
       } catch (dbError) {
         console.error("Failed to update article in DB:", dbError);
+        dbSaved = false;
       }
     }
 
@@ -133,6 +135,7 @@ export async function POST(request: NextRequest) {
       linkCount: linksApplied,
       totalRequested: approvedLinks.length,
       success: true,
+      ...(dbSaved === false && { warning: "Links were applied to the HTML but the database update failed. Your changes may not persist after refresh." }),
     });
   } catch (error) {
     console.error("[apply-links] Error:", error);

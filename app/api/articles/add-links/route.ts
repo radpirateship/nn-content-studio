@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getSQL } from "@/lib/db";
 import { callAI } from "@/lib/ai";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 // Link icon SVG - same as used in the generate route
 const LINK_ICON = `<svg stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="currentColor" fill="none" viewBox="0 0 24 24" height="16" width="16" xmlns="http://www.w3.org/2000/svg"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>`;
@@ -15,6 +16,10 @@ const LINK_ICON = `<svg stroke-linejoin="round" stroke-linecap="round" stroke-wi
  * "Here is text. Here are URLs. Add links to natural anchor text."
  */
 export async function POST(request: NextRequest) {
+  // Rate limit: 5 AI link injections per minute
+  const limit = rateLimit("add-links", { windowMs: 60_000, max: 5 });
+  if (!limit.allowed) return rateLimitResponse(limit);
+
   try {
     const { articleId, htmlContent, internalLinks } = await request.json();
 

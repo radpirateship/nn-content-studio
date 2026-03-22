@@ -11,6 +11,7 @@ import { NN_STYLES } from "@/lib/nn-template"
 import { randomUUID } from "crypto"
 import { revampGenerateRequestSchema } from "@/lib/api-schemas"
 import { getErrorMessage, logRouteEvent, parseAndValidateJson } from "@/lib/api-utils"
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -246,6 +247,10 @@ ${cards}
 // ── Main handler ─────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  // Rate limit: 3 full revamp generations per minute
+  const limit = rateLimit("revamp-generate", { windowMs: 60_000, max: 3 })
+  if (!limit.allowed) return rateLimitResponse(limit)
+
   const startedAt = Date.now()
   try {
     const parsed = await parseAndValidateJson(request, revampGenerateRequestSchema)
@@ -793,7 +798,7 @@ ${faqSchema}`.trim()
       },
     })
 
-    return NextResponse.json({ article })
+    return NextResponse.json({ success: true, article })
   } catch (error) {
     console.error("[revamp/generate] Error:", error)
     logRouteEvent("Revamp generate failed", {

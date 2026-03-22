@@ -29,6 +29,7 @@ import { TechnicalGuideView } from '@/components/technical-guide-view'
 import { ConnectionsView } from '@/components/connections-view'
 import { LogsView } from '@/components/logs-view'
 import { BarChart3, Clock, Layers, Zap } from 'lucide-react'
+import { ErrorBoundary } from '@/components/error-boundary'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -131,8 +132,15 @@ export default function ContentStudio() {
     loadCollections()
   }, [])
 
-  // Save / Update article
+  // Save / Update article — mutex prevents duplicate creation from overlapping calls
+  const isSavingNewRef = useRef(false)
   const saveArticleToDb = async (article: GeneratedArticle) => {
+    // Prevent duplicate article creation if called twice before the first resolves
+    if (isSavingNewRef.current) {
+      console.warn('[saveArticleToDb] Save already in progress, skipping duplicate call')
+      return null
+    }
+    isSavingNewRef.current = true
     try {
       const response = await fetch('/api/articles', {
         method: 'POST',
@@ -145,10 +153,10 @@ export default function ContentStudio() {
           html_content: article.htmlContent,
           meta_description: article.metaDescription,
           schema_markup: article.schemaMarkup,
-        featured_image_url: article.featuredImage?.url,
-        image_storyboard: article.imageStoryboard ?? null,
-        word_count: article.wordCount,
-        status: 'draft',
+          featured_image_url: article.featuredImage?.url,
+          image_storyboard: article.imageStoryboard ?? null,
+          word_count: article.wordCount,
+          status: 'draft',
           article_type: article.articleType || null,
           shopify_blog_tag: article.shopifyBlogTag || null,
         }),
@@ -160,6 +168,8 @@ export default function ContentStudio() {
     } catch (error) {
       console.error('[saveArticleToDb] Failed to save article:', error)
       toast.error('Failed to save article to database')
+    } finally {
+      isSavingNewRef.current = false
     }
     return null
   }
@@ -205,6 +215,7 @@ export default function ContentStudio() {
         hash = ((hash << 5) + hash + sample.charCodeAt(i)) | 0
       }
       lastSavedRef.current = `${article.dbId}-${hash}`
+      isDirtyRef.current = false
       autoSaveFailCountRef.current = 0
       setSaveStatus('saved')
     } catch (error) {
@@ -221,6 +232,9 @@ export default function ContentStudio() {
   const lastSavedRef = useRef<string>('')
   const isSavingRef = useRef(false)
   const autoSaveFailCountRef = useRef(0)
+  // Independent dirty flag — true whenever content has changed since last confirmed save.
+  // This catches the gap where the debounce timer hasn't fired yet.
+  const isDirtyRef = useRef(false)
   useEffect(() => {
     if (!currentArticle?.dbId || !currentArticle.htmlContent) return
     // Create a content fingerprint using djb2 hash over evenly-spaced samples.
@@ -240,6 +254,7 @@ export default function ContentStudio() {
     }
     const fingerprint = `${currentArticle.dbId}-${hash}`
     if (fingerprint === lastSavedRef.current) return
+    isDirtyRef.current = true
     setSaveStatus('unsaved')
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     autoSaveTimerRef.current = setTimeout(async () => {
@@ -249,6 +264,7 @@ export default function ContentStudio() {
       try {
         await updateArticleInDb(currentArticle)
         lastSavedRef.current = fingerprint
+        isDirtyRef.current = false
         autoSaveFailCountRef.current = 0
         setSaveStatus('saved')
       } catch {
@@ -266,10 +282,13 @@ export default function ContentStudio() {
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current) }
   }, [currentArticle])
 
-  // Warn before navigating away with unsaved changes (pending auto-save timer)
+  // Warn before navigating away with unsaved changes.
+  // Uses isDirtyRef (set on any edit, cleared only after confirmed save) rather
+  // than checking the timer ref, which misses the window between a timer firing
+  // and the next edit creating a new timer.
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (autoSaveTimerRef.current) {
+      if (isDirtyRef.current || autoSaveTimerRef.current) {
         e.preventDefault()
       }
     }
@@ -786,6 +805,7 @@ export default function ContentStudio() {
 
       {/* Main Content */}
       <main className="flex flex-col overflow-hidden" style={{ gridRow: '2', gridColumn: '2', background: 'var(--bg-warm)' }}>
+      <ErrorBoundary>
         {/* Article Context Bar — persistent when an article is loaded */}
         {currentArticle && activeView !== 'revamp-input' && activeView !== 'revamp-analysis' && (
           <ArticleContextBar
@@ -1081,6 +1101,7 @@ export default function ContentStudio() {
           <LogsView />
         )}
 
+      </ErrorBoundary>
       </main>
 
       {/* Unsaved changes navigation guard */}

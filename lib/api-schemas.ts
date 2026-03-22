@@ -3,6 +3,9 @@ import { z } from "zod"
 const optionalString = z.string().trim().optional()
 const nullableOptionalString = z.string().trim().nullable().optional()
 const nullableJsonRecord = z.record(z.string(), z.unknown()).nullable().optional()
+
+/** Valid article statuses — must match ArticleStatus in types.ts */
+const articleStatusEnum = z.enum(["draft", "reviewing", "approved", "published", "failed"])
 const productInputSchema = z.object({
   title: z.string().trim().min(1),
   description: optionalString,
@@ -123,7 +126,7 @@ export const createArticleSchema = z.object({
   schema_markup: nullableOptionalString,
   featured_image_url: nullableOptionalString,
   word_count: z.coerce.number().int().min(0).optional(),
-  status: optionalString.default("draft"),
+  status: articleStatusEnum.default("draft"),
   tone: nullableOptionalString,
   article_type: nullableOptionalString,
   shopify_blog_tag: nullableOptionalString,
@@ -142,7 +145,7 @@ export const updateArticleSchema = z
     schema_markup: nullableOptionalString,
     featured_image_url: nullableOptionalString,
     word_count: z.coerce.number().int().min(0).optional(),
-    status: nullableOptionalString,
+    status: articleStatusEnum.nullable().optional(),
     tone: nullableOptionalString,
     article_type: nullableOptionalString,
     shopify_blog_tag: nullableOptionalString,

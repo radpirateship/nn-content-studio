@@ -113,11 +113,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Update database
+    let dbSaved = true;
     if (articleId && insertedCount > 0) {
       try {
         const sql = getSQL();
         await sql`
-          UPDATE articles 
+          UPDATE articles
           SET html_content = ${enrichedHTML},
               has_images = true,
               image_count = ${insertedCount},
@@ -126,6 +127,7 @@ export async function POST(request: NextRequest) {
         `;
       } catch (dbError) {
         console.error("Failed to update article in DB:", dbError);
+        dbSaved = false;
       }
     }
 
@@ -133,6 +135,7 @@ export async function POST(request: NextRequest) {
       htmlContent: enrichedHTML,
       imageCount: insertedCount,
       success: true,
+      ...(dbSaved === false && { warning: "Images were inserted into the HTML but the database update failed. Your changes may not persist after refresh." }),
     });
   } catch (error) {
     console.error("Insert images error:", error);

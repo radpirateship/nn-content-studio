@@ -34,14 +34,19 @@ export default [
       "react-hooks": reactHooks,
     },
     rules: {
-      "no-unused-vars": "off",
-      "@typescript-eslint/no-unused-vars": "off",
-      "no-undef": "off",
-      "no-useless-escape": "off",
-      "no-control-regex": "off",
-      "no-empty": "off",
-      "no-useless-catch": "off",
-      "preserve-caught-error": "off",
+      // Re-enable safety-critical rules as warnings first to avoid blocking CI
+      // while existing violations are cleaned up incrementally.
+      "no-unused-vars": "off",                  // TypeScript handles this better
+      "@typescript-eslint/no-unused-vars": ["warn", {
+        argsIgnorePattern: "^_",
+        varsIgnorePattern: "^_",
+        caughtErrorsIgnorePattern: "^_",
+      }],
+      "no-undef": "off",                        // TypeScript handles this
+      "no-useless-escape": "warn",
+      "no-control-regex": "off",                 // false positives in HTML regex
+      "no-empty": ["warn", { allowEmptyCatch: false }],   // catch blocks should not be empty
+      "no-useless-catch": "warn",                // re-throwing without modification is a code smell
       "no-useless-assignment": "off",
     },
   },

@@ -292,6 +292,7 @@ export function BulkUploadView({
             article.htmlContent = d.htmlContent
             article.hasInternalLinks = true
             article.linkCount = d.linkCount
+            if (d.warning) console.warn(`[bulk-upload] Links for "${item.title}": ${d.warning}`)
           }
         } catch (error) {
           console.warn(`[bulk-upload] Link application failed for "${item.title}":`, error)

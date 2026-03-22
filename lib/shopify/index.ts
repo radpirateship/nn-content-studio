@@ -1,9 +1,11 @@
 import { ProductCollectionSortKey, ProductSortKey, ShopifyProduct } from "./types";
 import { parseShopifyDomain } from "./parse-shopify-domain";
 import { DEFAULT_PAGE_SIZE, DEFAULT_SORT_KEY } from "./constants";
+import { withRetry } from "../retry";
 
-const SHOPIFY_API_VERSION = "2024-01";
+const SHOPIFY_API_VERSION = "2025-01";
 const HARDCODED_DOMAIN = "nakednutrition.myshopify.com";
+const SHOPIFY_TIMEOUT_MS = 15_000; // 15 seconds per request
 
 // Read ALL Shopify config lazily at request time (not module load)
 function getShopifyConfig() {
@@ -19,7 +21,7 @@ function getShopifyConfig() {
   return { domain, url, token };
 }
 
-// Shopify Storefront API request with token
+// Shopify Storefront API request with token, timeout, and retry
 async function shopifyFetch<T>({
   query,
   variables = {},
@@ -27,8 +29,8 @@ async function shopifyFetch<T>({
   query: string;
   variables?: Record<string, unknown>;
 }): Promise<{ data: T; errors?: unknown[] }> {
-  const { url, token, domain } = getShopifyConfig();
-  
+  const { url, token } = getShopifyConfig();
+
   if (!token) {
     throw new Error("SHOPIFY_STOREFRONT_ACCESS_TOKEN is not set");
   }
@@ -38,31 +40,42 @@ async function shopifyFetch<T>({
     "X-Shopify-Storefront-Access-Token": token,
   };
 
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ query, variables }),
-      cache: "no-store",
-    });
+  return withRetry(async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), SHOPIFY_TIMEOUT_MS);
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(`Shopify API HTTP error! Status: ${response.status}, Body: ${errorBody}`);
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ query, variables }),
+        cache: "no-store",
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Shopify API HTTP error! Status: ${response.status}, Body: ${errorBody}`);
+      }
+
+      const json = await response.json();
+
+      if (json.errors) {
+        console.error("Shopify API errors:", json.errors);
+        throw new Error(`Shopify GraphQL errors: ${JSON.stringify(json.errors)}`);
+      }
+
+      return json;
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error(`Shopify API request timed out after ${SHOPIFY_TIMEOUT_MS / 1000}s`);
+      }
+      console.error("Shopify fetch error:", error);
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    const json = await response.json();
-
-    if (json.errors) {
-      console.error("Shopify API errors:", json.errors);
-      throw new Error(`Shopify GraphQL errors: ${JSON.stringify(json.errors)}`);
-    }
-
-    return json;
-  } catch (error) {
-    console.error("Shopify fetch error:", error);
-    throw error;
-  }
+  }, { label: 'Shopify', maxRetries: 2 });
 }
 
 // Get products from a specific collection

@@ -17,17 +17,25 @@ export async function GET(request: NextRequest) {
     const ids = searchParams.get("ids");
 
     if (shopifyArticleId) {
+      const parsedId = parseInt(shopifyArticleId, 10);
+      if (isNaN(parsedId)) {
+        return NextResponse.json(
+          { error: "shopifyArticleId must be a valid number" },
+          { status: 400 }
+        );
+      }
+
       const rows = await sql`
         SELECT id, shopify_article_id, handle, title, status, notes, reviewed_at, created_at
         FROM workshop_reviews
-        WHERE shopify_article_id = ${parseInt(shopifyArticleId)}
+        WHERE shopify_article_id = ${parsedId}
         LIMIT 1
       `;
 
       if (rows.length === 0) {
         return NextResponse.json({
           status: "not_reviewed",
-          shopifyArticleId: parseInt(shopifyArticleId),
+          shopifyArticleId: parsedId,
         });
       }
 

@@ -8,6 +8,7 @@ import { NN_STYLES } from "@/lib/nn-template";
 import { logActivity } from "@/lib/activity-log";
 import { generateArticleRequestSchema } from "@/lib/api-schemas";
 import { getErrorMessage, logRouteEvent, parseAndValidateJson } from "@/lib/api-utils";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 // ============================================================================
 // SVG icon for external links
@@ -245,6 +246,10 @@ ${cards}
 // MAIN ROUTE HANDLER
 // ============================================================================
 export async function POST(request: NextRequest) {
+  // Rate limit: 3 full article generations per minute
+  const limit = rateLimit("generate-article", { windowMs: 60_000, max: 3 });
+  if (!limit.allowed) return rateLimitResponse(limit);
+
   const startedAt = Date.now();
   try {
     const parsed = await parseAndValidateJson(request, generateArticleRequestSchema);
@@ -640,6 +645,7 @@ ${faqSchema}`.trim();
     });
 
     return NextResponse.json({
+      success: true,
       content: finalHtml,
       wordCount: targetWordCount,
       metaDescription: subtitle.trim().slice(0, 160),
