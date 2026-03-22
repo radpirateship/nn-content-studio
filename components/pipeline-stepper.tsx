@@ -24,7 +24,6 @@ export function PipelineStepper({ steps, activeView, onNavigate }: PipelineStepp
     >
       {steps.map((step, i) => {
         const isCurrent = step.id === activeView
-        const isClickable = step.done || isCurrent
 
         return (
           <div key={step.id} className="flex items-center">
@@ -35,22 +34,21 @@ export function PipelineStepper({ steps, activeView, onNavigate }: PipelineStepp
               />
             )}
             <button
-              onClick={() => isClickable && onNavigate(step.id)}
-              disabled={!isClickable}
+              onClick={() => onNavigate(step.id)}
               className={cn(
-                'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors',
+                'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[12px] font-medium transition-all cursor-pointer',
                 isCurrent && 'font-semibold',
-                isClickable && !isCurrent && 'hover:bg-[var(--surface)]',
-                !isClickable && 'cursor-default',
+                !isCurrent && 'hover:bg-[var(--surface)] hover:underline',
               )}
               style={{
                 color: isCurrent
                   ? 'var(--nn-accent)'
                   : step.done
-                    ? 'var(--text2)'
-                    : 'var(--text4)',
+                    ? 'var(--nn-accent)'
+                    : 'var(--text2)',
                 background: isCurrent ? 'var(--nn-accent-light)' : undefined,
               }}
+              title={`Go to ${step.label}`}
             >
               <span
                 className="flex h-[18px] w-[18px] items-center justify-center rounded-full text-[9px] font-mono flex-shrink-0"

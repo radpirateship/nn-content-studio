@@ -973,6 +973,21 @@ export default function ContentStudio() {
           />
         )}
 
+        {/* === Revamp Analysis View — empty state when navigated directly === */}
+        {activeView === 'revamp-analysis' && !revampAnalysis && (
+          <div className="flex flex-1 items-center justify-center p-10" style={{ background: 'var(--bg-warm)' }}>
+            <div className="w-full max-w-[400px] rounded-xl border p-8 text-center" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+              <p className="text-[15px] font-medium mb-1" style={{ color: 'var(--text1)' }}>No analysis in progress</p>
+              <p className="text-[13px] mb-6" style={{ color: 'var(--text3)' }}>
+                Analysis Review shows results after you paste an existing article into the Revamp tool and run the analysis.
+              </p>
+              <Button size="sm" onClick={() => setActiveView('revamp-input')}>
+                Go to Revamp Article
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* === Revamp Analysis View === */}
         {activeView === 'revamp-analysis' && revampAnalysis && (
           <RevampAnalysisView
