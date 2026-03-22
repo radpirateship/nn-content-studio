@@ -471,18 +471,23 @@ export function ProductCatalogManager({ onProductsLoaded }: ProductCatalogManage
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      {product.url ? (
-                        <a
-                          href={product.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm font-medium truncate leading-tight hover:underline block"
-                        >
-                          {product.title}
-                        </a>
-                      ) : (
-                        <p className="text-sm font-medium truncate leading-tight">{product.title}</p>
-                      )}
+                      {(() => {
+                        const liveUrl = product.handle
+                          ? `https://www.nakednutrition.com/products/${product.handle}`
+                          : (!product.url?.includes('cdn.shopify') ? product.url : null)
+                        return liveUrl ? (
+                          <a
+                            href={liveUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm font-medium truncate leading-tight hover:underline block"
+                          >
+                            {product.title}
+                          </a>
+                        ) : (
+                          <p className="text-sm font-medium truncate leading-tight">{product.title}</p>
+                        )
+                      })()}
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {product.price ? `$${product.price}` : ''}
                         {product.price && product.vendor ? ' · ' : ''}

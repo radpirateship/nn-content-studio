@@ -858,13 +858,18 @@ import { buildShopifyTags } from '@/lib/tagMapping'
                       <div className="flex items-center justify-between pt-0.5">
                         <span className="text-xs font-semibold text-primary">${product.price}</span>
                         <div className="flex gap-1">
-                          {product.url && (
-                            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" asChild>
-                              <a href={product.url} target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="h-3 w-3" />
-                              </a>
-                            </Button>
-                          )}
+                          {(() => {
+                            const liveUrl = product.handle
+                              ? `https://www.nakednutrition.com/products/${product.handle}`
+                              : (!product.url?.includes('cdn.shopify') ? product.url : null)
+                            return liveUrl ? (
+                              <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" asChild>
+                                <a href={liveUrl} target="_blank" rel="noopener noreferrer">
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                              </Button>
+                            ) : null
+                          })()}
                           <Button
                             variant="ghost"
                             size="sm"
