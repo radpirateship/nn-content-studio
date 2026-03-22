@@ -188,8 +188,7 @@ export function PublishConfirmView({ article, onBackToEditor, onNewArticle, onVi
               <Button
                 onClick={handlePublish}
                 className="flex-1 gap-1.5 text-[13px]"
-                style={{ background: 'var(--nn-accent)', color: '#fff' }}
-              >
+                             >
                 Publish to Shopify
               </Button>
               <Button variant="outline" onClick={onBackToEditor} className="text-[13px]">
@@ -222,8 +221,7 @@ export function PublishConfirmView({ article, onBackToEditor, onNewArticle, onVi
               <Button
                 onClick={handlePublish}
                 className="flex-1 gap-1.5 text-[13px]"
-                style={{ background: 'var(--nn-accent)', color: '#fff' }}
-              >
+                             >
                 Retry Publish
               </Button>
               <Button variant="outline" onClick={onBackToEditor} className="text-[13px]">

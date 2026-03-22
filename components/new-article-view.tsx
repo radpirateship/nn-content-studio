@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Zap, BookOpen, Loader2 } from 'lucide-react'
+import { Search, Zap, BookOpen, Loader2, ChevronDown } from 'lucide-react'
 import type { ArticleInput, ArticleTone } from '@/lib/types'
 // ShopifyBlogTag is now just a string type
 
@@ -89,6 +89,16 @@ export function NewArticleView({ onGenerate, isGenerating }: NewArticleViewProps
     includeAIImages: false,
     includeSchema: true,
   })
+
+  // Collapsible sections — advanced settings default to collapsed for simpler first impression
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
+    seo: true,
+    config: false,
+    modules: true,
+    context: true,
+  })
+  const toggleSection = (key: string) =>
+    setCollapsedSections(prev => ({ ...prev, [key]: !prev[key] }))
 
   const handleChange = (field: string, value: string | number | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -309,11 +319,20 @@ export function NewArticleView({ onGenerate, isGenerating }: NewArticleViewProps
 
             {/* SEO */}
             <div className="flex flex-col gap-2.5">
-              <div className={sectionLabel} style={{ color: 'var(--nn-accent)', borderBottom: '1px solid var(--surface2)' }}>
-                SEO Meta Tags
-              </div>
+              <button
+                type="button"
+                onClick={() => toggleSection('seo')}
+                className="flex items-center justify-between w-full text-left"
+                style={{ borderBottom: '1px solid var(--surface2)' }}
+              >
+                <span className={sectionLabel} style={{ color: 'var(--nn-accent)' }}>SEO Meta Tags</span>
+                <ChevronDown
+                  className="h-3.5 w-3.5 transition-transform"
+                  style={{ color: 'var(--text4)', transform: collapsedSections.seo ? 'rotate(-90deg)' : 'rotate(0deg)' }}
+                />
+              </button>
 
-              <div className="flex flex-col gap-1.5">
+              {!collapsedSections.seo && <><div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <label className={fieldLabel} style={{ color: 'var(--text3)' }}>Title Tag</label>
                   <span className="text-[10px] font-mono" style={{ color: formData.titleTag.length > 60 ? '#c53030' : 'var(--text4)' }}>
@@ -345,16 +364,25 @@ export function NewArticleView({ onGenerate, isGenerating }: NewArticleViewProps
                   className={`${inputBase} ${focusStyle} resize-none`}
                   style={inputStyle}
                 />
-              </div>
+              </div></>}
             </div>
 
             {/* Configuration */}
             <div className="flex flex-col gap-2.5">
-              <div className={sectionLabel} style={{ color: 'var(--nn-accent)', borderBottom: '1px solid var(--surface2)' }}>
-                Configuration
-              </div>
+              <button
+                type="button"
+                onClick={() => toggleSection('config')}
+                className="flex items-center justify-between w-full text-left"
+                style={{ borderBottom: '1px solid var(--surface2)' }}
+              >
+                <span className={sectionLabel} style={{ color: 'var(--nn-accent)' }}>Configuration</span>
+                <ChevronDown
+                  className="h-3.5 w-3.5 transition-transform"
+                  style={{ color: 'var(--text4)', transform: collapsedSections.config ? 'rotate(-90deg)' : 'rotate(0deg)' }}
+                />
+              </button>
 
-              <div className="grid grid-cols-2 gap-3">
+              {!collapsedSections.config && <><div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
                   <label className={fieldLabel} style={{ color: 'var(--text3)' }}>Article Type</label>
                   <select
@@ -402,16 +430,25 @@ export function NewArticleView({ onGenerate, isGenerating }: NewArticleViewProps
                     {AUDIENCES.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
                   </select>
                 </div>
-              </div>
+              </div></>}
             </div>
 
             {/* Content Modules */}
             <div className="flex flex-col gap-2.5">
-              <div className={sectionLabel} style={{ color: 'var(--nn-accent)', borderBottom: '1px solid var(--surface2)' }}>
-                Content Modules
-              </div>
+              <button
+                type="button"
+                onClick={() => toggleSection('modules')}
+                className="flex items-center justify-between w-full text-left"
+                style={{ borderBottom: '1px solid var(--surface2)' }}
+              >
+                <span className={sectionLabel} style={{ color: 'var(--nn-accent)' }}>Content Modules</span>
+                <ChevronDown
+                  className="h-3.5 w-3.5 transition-transform"
+                  style={{ color: 'var(--text4)', transform: collapsedSections.modules ? 'rotate(-90deg)' : 'rotate(0deg)' }}
+                />
+              </button>
 
-              <div className="flex flex-col gap-1.5">
+              {!collapsedSections.modules && <div className="flex flex-col gap-1.5">
                 {contentModules.map((toggle) => {
                   const isOn = formData[toggle.key as keyof typeof formData] as boolean
                   return (
@@ -444,15 +481,26 @@ export function NewArticleView({ onGenerate, isGenerating }: NewArticleViewProps
                     </button>
                   )
                 })}
-              </div>
+              </div>}
             </div>
 
             {/* Additional Context */}
             <div className="flex flex-col gap-2.5">
-              <div className={sectionLabel} style={{ color: 'var(--nn-accent)', borderBottom: '1px solid var(--surface2)' }}>
-                Additional Context <span style={{ color: 'var(--text4)', fontSize: '10px', textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
-              </div>
-              <div className="flex flex-col gap-1.5">
+              <button
+                type="button"
+                onClick={() => toggleSection('context')}
+                className="flex items-center justify-between w-full text-left"
+                style={{ borderBottom: '1px solid var(--surface2)' }}
+              >
+                <span className={sectionLabel} style={{ color: 'var(--nn-accent)' }}>
+                  Additional Context <span style={{ color: 'var(--text4)', fontSize: '10px', textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
+                </span>
+                <ChevronDown
+                  className="h-3.5 w-3.5 transition-transform"
+                  style={{ color: 'var(--text4)', transform: collapsedSections.context ? 'rotate(-90deg)' : 'rotate(0deg)' }}
+                />
+              </button>
+              {!collapsedSections.context && <div className="flex flex-col gap-1.5">
                 <label className={fieldLabel} style={{ color: 'var(--text3)' }}>Special Instructions</label>
                 <textarea
                   value={formData.specialInstructions}
@@ -462,7 +510,7 @@ export function NewArticleView({ onGenerate, isGenerating }: NewArticleViewProps
                   className={`${inputBase} ${focusStyle} resize-y`}
                   style={{ ...inputStyle, minHeight: '68px' }}
                 />
-              </div>
+              </div>}
             </div>
 
           </div>
@@ -479,16 +527,14 @@ export function NewArticleView({ onGenerate, isGenerating }: NewArticleViewProps
         </span>
         <div className="flex items-center gap-2">
           <button
-            className="rounded-md border px-4 py-2 text-[13px] font-medium"
-            style={{ background: 'var(--bg)', color: 'var(--text1)', borderColor: 'var(--border)' }}
+            className="btn-outline px-4 py-2 text-[13px]"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={isGenerating || !formData.title || !formData.keyword}
-            className="rounded-md px-5 py-2.5 text-[14px] font-semibold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            style={{ background: isGenerating ? 'var(--text3)' : 'var(--nn-accent)' }}
+            className="btn-primary px-5 py-2.5 text-[14px] font-semibold flex items-center justify-center gap-2"
           >
             {isGenerating && <Loader2 className="h-4 w-4 animate-spin" />}
             {isGenerating ? 'Generating...' : runMode === 'auto' ? 'Start Auto-Run' : runMode === 'bulk' ? 'Add to Queue' : 'Generate Outline \u2192'}

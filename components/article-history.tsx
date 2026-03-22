@@ -167,8 +167,7 @@ export function ArticleHistory({ articles, onSelect, onDelete, onStatusChange, o
             {articles.length === 0 && onCreateNew && (
               <button
                 onClick={onCreateNew}
-                className="mt-4 rounded-md px-4 py-2 text-[13px] font-medium text-white transition-all hover:opacity-90"
-                style={{ background: 'var(--nn-accent)' }}
+                className="btn-primary mt-4 px-4 py-2 text-[13px]"
               >
                 Create New Article
               </button>

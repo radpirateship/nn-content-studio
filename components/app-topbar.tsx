@@ -3,9 +3,14 @@
 interface AppTopbarProps {
   isGenerating?: boolean
   generationMessage?: string
+  userName?: string
 }
 
-export function AppTopbar({ isGenerating, generationMessage }: AppTopbarProps) {
+export function AppTopbar({ isGenerating, generationMessage, userName }: AppTopbarProps) {
+  // Derive display name and initial from prop or env, with fallback
+  const displayName = userName || process.env.NEXT_PUBLIC_USER_NAME || 'User'
+  const initial = displayName.charAt(0).toUpperCase()
+
   return (
     <header
       className="flex items-center gap-3 px-5 relative z-10"
@@ -32,7 +37,7 @@ export function AppTopbar({ isGenerating, generationMessage }: AppTopbarProps) {
         </>
       )}
 
-      {/* Right side */}
+      {/* Right side — user identity */}
       <div className="ml-auto flex items-center gap-3">
         <div className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--text2)' }}>
           <div
@@ -43,9 +48,9 @@ export function AppTopbar({ isGenerating, generationMessage }: AppTopbarProps) {
               color: 'var(--nn-accent)',
             }}
           >
-            R
+            {initial}
           </div>
-          Ryan
+          {displayName}
         </div>
       </div>
     </header>

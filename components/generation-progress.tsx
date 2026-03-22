@@ -1,16 +1,17 @@
 'use client'
 
-import React from "react"
+import React, { useState, useEffect, useRef } from "react"
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { 
-  FileText, 
-  PenTool, 
-  Code, 
-  Check, 
+import {
+  FileText,
+  PenTool,
+  Code,
+  Check,
   Loader2,
   AlertCircle,
+  Clock,
 } from 'lucide-react'
 import type { GenerationStep } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -28,7 +29,34 @@ const STEPS: { key: GenerationStep; label: string; icon: React.ElementType }[] =
   { key: 'ready-for-review', label: 'Ready for Review', icon: Check },
 ]
 
+function formatElapsed(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return m > 0 ? `${m}:${s.toString().padStart(2, '0')}` : `0:${s.toString().padStart(2, '0')}`
+}
+
 export function GenerationProgress({ step, progress, message }: GenerationProgressProps) {
+  // Elapsed time counter
+  const [elapsed, setElapsed] = useState(0)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const isActive = step !== 'idle' && step !== 'complete' && step !== 'error'
+
+  useEffect(() => {
+    if (isActive) {
+      // Reset on new generation
+      setElapsed(0)
+      intervalRef.current = setInterval(() => {
+        setElapsed(prev => prev + 1)
+      }, 1000)
+    }
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
+  }, [isActive])
+
   if (step === 'idle') return null
 
   const currentStepIndex = STEPS.findIndex(s => s.key === step)
@@ -61,6 +89,18 @@ export function GenerationProgress({ step, progress, message }: GenerationProgre
               <span>Generating Article</span>
             </>
           )}
+          {/* Elapsed time */}
+          {(isActive || isPublishing) && (
+            <span className="ml-auto flex items-center gap-1.5 text-sm font-normal text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              {formatElapsed(elapsed)}
+            </span>
+          )}
+          {(isComplete || isError) && elapsed > 0 && (
+            <span className="ml-auto text-sm font-normal text-muted-foreground">
+              {formatElapsed(elapsed)} total
+            </span>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -75,7 +115,7 @@ export function GenerationProgress({ step, progress, message }: GenerationProgre
           <div className="flex items-center justify-between gap-2">
             {STEPS.map((s, index) => {
               const Icon = s.icon
-              const isActive = s.key === step
+              const isStepActive = s.key === step
               const isPast = currentStepIndex > index
               const isFuture = currentStepIndex < index && currentStepIndex !== -1
 
@@ -84,21 +124,21 @@ export function GenerationProgress({ step, progress, message }: GenerationProgre
                   key={s.key}
                   className={cn(
                     'flex flex-1 flex-col items-center gap-1 rounded-lg p-2 transition-colors',
-                    isActive && 'bg-primary/10',
+                    isStepActive && 'bg-primary/10',
                     isPast && 'opacity-60'
                   )}
                 >
                   <div
                     className={cn(
                       'flex h-8 w-8 items-center justify-center rounded-full',
-                      isActive && 'bg-primary text-primary-foreground',
+                      isStepActive && 'bg-primary text-primary-foreground',
                       isPast && 'bg-primary/20 text-primary',
                       isFuture && 'bg-muted text-muted-foreground'
                     )}
                   >
                     {isPast ? (
                       <Check className="h-4 w-4" />
-                    ) : isActive ? (
+                    ) : isStepActive ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <Icon className="h-4 w-4" />
@@ -107,8 +147,8 @@ export function GenerationProgress({ step, progress, message }: GenerationProgre
                   <span
                     className={cn(
                       'text-xs text-center',
-                      isActive && 'font-medium text-foreground',
-                      !isActive && 'text-muted-foreground'
+                      isStepActive && 'font-medium text-foreground',
+                      !isStepActive && 'text-muted-foreground'
                     )}
                   >
                     {s.label}

@@ -397,8 +397,7 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
                           <button
                             onClick={() => revampBlogPost(post)}
                             disabled={isFetchingBlogPost}
-                            className="px-2.5 py-1 rounded text-[11px] font-medium text-white transition-all flex-shrink-0"
-                            style={{ background: 'var(--nn-accent)', opacity: isFetchingBlogPost ? 0.7 : 1 }}
+                            className="btn-primary px-2.5 py-1 text-[11px] flex-shrink-0"
                           >
                             {isFetchingBlogPost ? 'Loading...' : 'Revamp This'}
                           </button>
@@ -693,8 +692,7 @@ export function RevampArticleView({ onAnalysisComplete }: RevampArticleViewProps
           <button
             onClick={handleAnalyze}
             disabled={isLoading || (!articleContent.trim()) || (!keyword.trim())}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-[13px] text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ background: 'var(--nn-accent)' }}
+            className="btn-primary w-full flex items-center justify-center gap-2 py-2.5 text-[13px]"
           >
             {isLoading ? (
               <>

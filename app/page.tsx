@@ -41,11 +41,67 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import type { ArticleInput, ArticleStatus, GeneratedArticle, GenerationStep, Product } from '@/lib/types'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button'
+import { useAnnounce } from '@/components/aria-live-announcer'
+import { PipelineStepper } from '@/components/pipeline-stepper'
+import { useKeyboardShortcuts, ShortcutsHelp } from '@/components/keyboard-shortcuts'
+import { PipelineNextStep } from '@/components/pipeline-next-step'
+import { CommandPalette } from '@/components/command-palette'
+import { sessionGet, useSessionPersist } from '@/lib/use-session-storage'
+
+// Valid view IDs for hash routing
+const VALID_VIEWS = new Set<ViewId>([
+  'revamp-input', 'revamp-analysis', 'new-article', 'outline-review',
+  'article-content', 'article-links', 'article-images', 'article-seo',
+  'library', 'queue', 'bulk-queue', 'products', 'resources', 'auto-run',
+  'publish-confirm', 'error', 'workshop', 'guide', 'tech-guide',
+  'connections', 'logs',
+])
+
+function getViewFromHash(): ViewId {
+  if (typeof window === 'undefined') return 'revamp-input'
+  const hash = window.location.hash.replace('#', '')
+  return VALID_VIEWS.has(hash as ViewId) ? (hash as ViewId) : 'revamp-input'
+}
 
 export default function ContentStudio() {
-  // Navigation
-  const [activeView, setActiveView] = useState<ViewId>('revamp-input')
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  // Navigation — initialise from URL hash so refreshes preserve the active view
+  const [activeView, setActiveView] = useState<ViewId>(getViewFromHash)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => sessionGet('sidebarCollapsed', false))
+
+  // Sync activeView ↔ URL hash for browser back/forward and refresh persistence
+  useEffect(() => {
+    const newHash = `#${activeView}`
+    if (window.location.hash !== newHash) {
+      window.history.pushState(null, '', newHash)
+    }
+  }, [activeView])
+
+  useEffect(() => {
+    const onHashChange = () => {
+      const view = getViewFromHash()
+      setActiveView(view)
+    }
+    window.addEventListener('hashchange', onHashChange)
+    window.addEventListener('popstate', onHashChange)
+    return () => {
+      window.removeEventListener('hashchange', onHashChange)
+      window.removeEventListener('popstate', onHashChange)
+    }
+  }, [])
+
+  // Initial loading state
+  const [isInitialLoading, setIsInitialLoading] = useState(true)
+
+  // Persist sidebar state to sessionStorage for refresh resilience
+  useSessionPersist('sidebarCollapsed', sidebarCollapsed)
+
+  // ARIA live announcer for screen reader accessibility
+  const announce = useAnnounce()
+
+  // Command palette state
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
 
   // Core state
   const [articles, setArticles] = useState<GeneratedArticle[]>([])
@@ -58,6 +114,9 @@ export default function ContentStudio() {
   const [generationStep, setGenerationStep] = useState<GenerationStep>('idle')
   const [generationProgress, setGenerationProgress] = useState(0)
   const [generationMessage, setGenerationMessage] = useState('')
+
+  // Persist current article ID to sessionStorage for refresh resilience
+  useSessionPersist('currentArticleId', currentArticle?.dbId ?? null)
 
   // Navigation guard state — prevents losing unsaved edits when switching views
   const [pendingNavigation, setPendingNavigation] = useState<ViewId | null>(null)
@@ -98,10 +157,13 @@ export default function ContentStudio() {
             createdAt: new Date(a.created_at),
           }))
           setArticles(articlesWithDates)
+
         }
       } catch (error) {
         console.error('[loadArticles] Failed to load articles from DB:', error)
         toast.error('Failed to load articles from database')
+      } finally {
+        setIsInitialLoading(false)
       }
     }
     loadArticles()
@@ -301,6 +363,21 @@ export default function ContentStudio() {
     setGenerationProgress(progress)
     setGenerationMessage(message)
   }
+
+  // Announce key generation step changes to screen readers
+  useEffect(() => {
+    const announcements: Partial<Record<GenerationStep, string>> = {
+      'generating-outline': 'Generating article outline',
+      'writing-content': 'Writing article content',
+      'optimizing-html': 'Optimizing HTML output',
+      'ready-for-review': 'Article ready for review',
+      'complete': 'Article generation complete',
+      'error': 'Article generation encountered an error',
+      'publishing': 'Publishing article to Shopify',
+    }
+    const msg = announcements[generationStep]
+    if (msg) announce(msg)
+  }, [generationStep, announce])
 
   const generateSlug = (title: string): string =>
     title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
@@ -720,6 +797,20 @@ export default function ContentStudio() {
     await loadInternalLinksForArticle(article)
   }
 
+  // Restore current article from sessionStorage after initial load
+  const hasRestoredRef = useRef(false)
+  useEffect(() => {
+    if (hasRestoredRef.current || articles.length === 0 || currentArticle) return
+    const savedArticleId = sessionGet<number | null>('currentArticleId', null)
+    if (savedArticleId) {
+      const match = articles.find(a => a.dbId === savedArticleId)
+      if (match) {
+        hasRestoredRef.current = true
+        loadArticleFromDb(match)
+      }
+    }
+  }, [articles])
+
   // Compute workflow steps for sidebar
   const workflowSteps = currentArticle ? [
     { label: 'Content', status: 'done' as const },
@@ -781,6 +872,15 @@ export default function ContentStudio() {
     setActiveView(view)
   }, [activeView, currentArticle])
 
+  // Keyboard shortcuts
+  const { showHelp: showShortcutsHelp, setShowHelp: setShowShortcutsHelp } = useKeyboardShortcuts({
+    onNavigate: handleNavigate,
+    onToggleSidebar: () => setSidebarCollapsed(prev => !prev),
+    onSave: currentArticle ? () => updateArticleInDb(currentArticle) : undefined,
+    onOpenCommandPalette: () => setCommandPaletteOpen(true),
+    hasCurrentArticle: !!currentArticle,
+  })
+
   return (
     <div className="grid h-screen overflow-hidden" style={{ gridTemplateColumns: sidebarCollapsed ? '56px 1fr' : 'var(--sidebar-w) 1fr', gridTemplateRows: 'var(--header-h) 1fr', transition: 'grid-template-columns 0.2s ease' }}>
       {/* Topbar */}
@@ -804,22 +904,60 @@ export default function ContentStudio() {
       </div>
 
       {/* Main Content */}
-      <main className="flex flex-col overflow-hidden" style={{ gridRow: '2', gridColumn: '2', background: 'var(--bg-warm)' }}>
+      <main id="main-content" className="flex flex-col overflow-hidden" style={{ gridRow: '2', gridColumn: '2', background: 'var(--bg-warm)' }}>
       <ErrorBoundary>
+        {/* Initial loading skeleton */}
+        {isInitialLoading && (
+          <div className="flex flex-1 flex-col gap-6 p-8" style={{ background: 'var(--bg-warm)' }}>
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-6 w-24 ml-auto" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3, 4, 5, 6].map(i => (
+                <div key={i} className="rounded-lg border p-4 space-y-3" style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}>
+                  <Skeleton className="h-5 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <div className="flex items-center gap-2 pt-1">
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                    <Skeleton className="h-4 w-20" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Article Context Bar — persistent when an article is loaded */}
-        {currentArticle && activeView !== 'revamp-input' && activeView !== 'revamp-analysis' && (
-          <ArticleContextBar
-            title={currentArticle.title}
-            status={currentArticle.status || 'draft'}
-            wordCount={currentArticle.wordCount}
-            category={currentArticle.category}
-            activeView={activeView}
-            hasLinks={currentArticle.hasInternalLinks || false}
-            hasImages={currentArticle.hasImages || false}
-            saveStatus={saveStatus}
-            onNavigate={handleNavigate}
-            onClose={handleCloseArticle}
-          />
+        {!isInitialLoading && currentArticle && activeView !== 'revamp-input' && activeView !== 'revamp-analysis' && (
+          <>
+            <ArticleContextBar
+              title={currentArticle.title}
+              status={currentArticle.status || 'draft'}
+              wordCount={currentArticle.wordCount}
+              category={currentArticle.category}
+              activeView={activeView}
+              hasLinks={currentArticle.hasInternalLinks || false}
+              hasImages={currentArticle.hasImages || false}
+              saveStatus={saveStatus}
+              onNavigate={handleNavigate}
+              onClose={handleCloseArticle}
+            />
+            {/* Pipeline stepper for article workflow views */}
+            {(['article-content', 'article-links', 'article-images', 'article-seo', 'publish-confirm'] as const).includes(activeView as any) && (
+              <PipelineStepper
+                steps={[
+                  { id: 'article-content', label: 'Content', done: true },
+                  { id: 'article-links', label: 'Links', done: currentArticle.hasInternalLinks || false },
+                  { id: 'article-images', label: 'Images', done: currentArticle.hasImages || false },
+                  { id: 'article-seo', label: 'SEO', done: false },
+                  { id: 'publish-confirm', label: 'Publish', done: currentArticle.status === 'published' },
+                ]}
+                activeView={activeView}
+                onNavigate={handleNavigate}
+              />
+            )}
+          </>
         )}
 
         {/* === Revamp Input View === */}
@@ -886,20 +1024,19 @@ export default function ContentStudio() {
                 Close the current article to create a new one, or go back to continue editing.
               </p>
               <div className="flex items-center justify-center gap-3">
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setActiveView('article-content')}
-                  className="rounded-lg px-4 py-2 text-[13px] font-medium border"
-                  style={{ color: 'var(--text2)', borderColor: 'var(--border)' }}
                 >
                   Back to article
-                </button>
-                <button
+                </Button>
+                <Button
+                  size="sm"
                   onClick={() => { setCurrentArticle(null); setIsEditing(false) }}
-                  className="rounded-lg px-4 py-2 text-[13px] font-medium text-white"
-                  style={{ background: 'var(--nn-accent)' }}
                 >
                   Start new article
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -923,6 +1060,13 @@ export default function ContentStudio() {
                 <ArticleEditor article={currentArticle} onSave={handleSaveEdit} onCancel={() => setIsEditing(false)} />
               )}
             </div>
+            {!isEditing && !currentArticle.hasInternalLinks && (
+              <PipelineNextStep
+                nextLabel="Internal Links"
+                onNext={() => handleNavigate('article-links')}
+                message="Content is ready — continue to add internal links"
+              />
+            )}
           </div>
         )}
 
@@ -939,6 +1083,13 @@ export default function ContentStudio() {
                 onBack={() => setActiveView('article-content')}
               />
             </div>
+            {currentArticle.hasInternalLinks && !currentArticle.hasImages && (
+              <PipelineNextStep
+                nextLabel="Images"
+                onNext={() => handleNavigate('article-images')}
+                message="Links applied — continue to add images"
+              />
+            )}
           </div>
         )}
 
@@ -954,6 +1105,13 @@ export default function ContentStudio() {
                 onSkip={() => setActiveView('article-content')}
               />
             </div>
+            {currentArticle.hasImages && (
+              <PipelineNextStep
+                nextLabel="SEO Review"
+                onNext={() => handleNavigate('article-seo')}
+                message="Images added — continue to review SEO"
+              />
+            )}
           </div>
         )}
 
@@ -1103,6 +1261,23 @@ export default function ContentStudio() {
 
       </ErrorBoundary>
       </main>
+
+      {/* Command palette (Cmd+K) */}
+      <CommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
+        onNavigate={handleNavigate}
+        articles={articles}
+        onSelectArticle={(article) => {
+          loadArticleFromDb(article as any)
+          setIsEditing(false)
+          setActiveView('article-content')
+        }}
+        hasCurrentArticle={!!currentArticle}
+      />
+
+      {/* Keyboard shortcuts help overlay */}
+      <ShortcutsHelp open={showShortcutsHelp} onClose={() => setShowShortcutsHelp(false)} />
 
       {/* Unsaved changes navigation guard */}
       <AlertDialog open={pendingNavigation !== null} onOpenChange={(open) => { if (!open) setPendingNavigation(null) }}>

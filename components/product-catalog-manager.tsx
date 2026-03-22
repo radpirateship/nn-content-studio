@@ -490,8 +490,16 @@ export function ProductCatalogManager({ onProductsLoaded }: ProductCatalogManage
                   </div>
                 ))}
                 {filteredProducts.length === 0 && (
-                  <div className="p-8 text-center text-muted-foreground">
-                    No products found
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Package className="h-8 w-8 mb-3 opacity-30" style={{ color: 'var(--text4)' }} />
+                    <p className="text-[13px] font-medium" style={{ color: 'var(--text2)' }}>
+                      {products.length === 0 ? 'No products synced' : 'No products match your filters'}
+                    </p>
+                    <p className="text-[12px] mt-1" style={{ color: 'var(--text4)' }}>
+                      {products.length === 0
+                        ? 'Upload a product CSV or sync from Shopify to get started.'
+                        : 'Try adjusting your search or category filter.'}
+                    </p>
                   </div>
                 )}
               </div>

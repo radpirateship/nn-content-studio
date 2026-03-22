@@ -650,7 +650,6 @@ export function ImageStoryboard({
               onClick={handleInsertAll}
               disabled={isInserting}
               className="gap-1.5"
-              style={{ background: 'var(--nn-accent)', color: '#fff' }}
             >
               {isInserting ? (
                 <>
@@ -684,7 +683,7 @@ export function ImageStoryboard({
                 </p>
               </div>
             </div>
-            <Button size="sm" onClick={onSkip} className="gap-1.5" style={{ background: 'var(--nn-accent)', color: '#fff' }}>
+            <Button size="sm" onClick={onSkip} className="gap-1.5">
               <ChevronLeft className="h-4 w-4" />
               Back to Editor
             </Button>

@@ -217,9 +217,10 @@ export function ContentQueueView({ articles, onNewArticle, onOpenArticle }: Prop
             {/* Column body */}
             <div className="flex flex-1 flex-col gap-1.5 overflow-y-auto p-2">
               {col.items.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-8 text-[11px]" style={{ color: 'var(--text4)' }}>
-                  <FileText className="h-5 w-5 mb-1.5 opacity-40" />
-                  No articles
+                <div className="flex flex-col items-center justify-center py-8 text-center" style={{ color: 'var(--text4)' }}>
+                  <FileText className="h-6 w-6 mb-2 opacity-30" />
+                  <p className="text-[12px] font-medium" style={{ color: 'var(--text3)' }}>No articles</p>
+                  <p className="text-[10px] mt-0.5">Drag articles here or generate new content</p>
                 </div>
               )}
               {col.items.map(item => (

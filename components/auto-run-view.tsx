@@ -335,7 +335,6 @@ export function AutoRunView({
                 disabled={!formData.title || !formData.keyword}
                 onClick={runAll}
                 className="gap-1.5"
-                style={{ background: 'var(--nn-accent)', color: '#fff' }}
               >
                 <Zap className="h-3.5 w-3.5" />
                 Start Auto-Run
@@ -424,8 +423,7 @@ export function AutoRunView({
                     size="sm"
                     onClick={() => onComplete(article)}
                     className="gap-1.5"
-                    style={{ background: 'var(--nn-accent)', color: '#fff' }}
-                  >
+                                      >
                     <Eye className="h-3.5 w-3.5" />
                     Review Article
                   </Button>
@@ -493,8 +491,7 @@ export function AutoRunView({
                     size="sm"
                     onClick={() => { setCurrentStep('idle'); setErrorMessage('') }}
                     className="gap-1.5"
-                    style={{ background: 'var(--nn-accent)', color: '#fff' }}
-                  >
+                                      >
                     Retry Generation
                   </Button>
                 </div>

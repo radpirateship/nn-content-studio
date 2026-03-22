@@ -499,8 +499,7 @@ export function BulkUploadView({
             size="sm"
             disabled={selectedForPublish.size === 0 || isRunning}
             className="gap-1.5 text-[12px] disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ background: 'var(--nn-accent)', color: '#fff' }}
-          >
+                      >
             <Send className="h-3.5 w-3.5" />
             Publish {selectedForPublish.size} Selected to Shopify
           </Button>
@@ -544,8 +543,7 @@ export function BulkUploadView({
                 disabled={validCount === 0}
                 onClick={runAll}
                 className="gap-1.5 text-[12px]"
-                style={{ background: 'var(--nn-accent)', color: '#fff' }}
-              >
+                              >
                 <Play className="h-3.5 w-3.5" />
                 Run All ({validCount})
               </Button>

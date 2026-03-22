@@ -25,6 +25,8 @@ import {
   PanelLeftClose,
   PanelLeft,
   Menu,
+  ChevronDown,
+  Settings,
 } from 'lucide-react'
 
 export type ViewId =
@@ -118,11 +120,33 @@ export function AppSidebar({
     { id: 'products', label: 'Products', icon: <Package className="h-[18px] w-[18px]" /> },
     { id: 'resources', label: 'Resources', icon: <Database className="h-[18px] w-[18px]" /> },
     { id: 'workshop', label: 'Workshop', icon: <Wrench className="h-[18px] w-[18px]" /> },
+  ]
+
+  const guideItems: NavItem[] = [
     { id: 'guide', label: 'Guide', icon: <BookOpen className="h-[18px] w-[18px]" /> },
     { id: 'tech-guide', label: 'Technical Guide', icon: <FileCode className="h-[18px] w-[18px]" /> },
+  ]
+
+  const settingsItems: NavItem[] = [
     { id: 'connections', label: 'Connections', icon: <Plug className="h-[18px] w-[18px]" /> },
     { id: 'logs', label: 'Logs', icon: <ScrollText className="h-[18px] w-[18px]" /> },
   ]
+
+  // Track which collapsible groups are open
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
+    guides: false,
+    settings: false,
+  })
+
+  // Auto-expand a group when navigating to one of its items
+  useEffect(() => {
+    if (guideItems.some(item => item.id === activeView) && !expandedGroups.guides) {
+      setExpandedGroups(prev => ({ ...prev, guides: true }))
+    }
+    if (settingsItems.some(item => item.id === activeView) && !expandedGroups.settings) {
+      setExpandedGroups(prev => ({ ...prev, settings: true }))
+    }
+  }, [activeView])
 
   function renderNavItem(item: NavItem) {
     const isActive = activeView === item.id
@@ -212,6 +236,42 @@ export function AppSidebar({
       {!collapsed && <div className="mx-4 my-2 h-px" style={{ background: 'var(--border)' }} />}
       {renderSectionLabel('Library')}
       {libraryItems.map(renderNavItem)}
+
+      {/* 📖 Guides (collapsible) */}
+      {!collapsed ? (
+        <button
+          onClick={() => setExpandedGroups(prev => ({ ...prev, guides: !prev.guides }))}
+          className="flex w-full items-center gap-1.5 px-4 pt-2.5 pb-1 text-[9px] font-medium tracking-[1.5px] uppercase font-mono"
+          style={{ color: 'var(--text4)' }}
+        >
+          <ChevronDown
+            className="h-3 w-3 transition-transform"
+            style={{ transform: expandedGroups.guides ? 'rotate(0deg)' : 'rotate(-90deg)' }}
+          />
+          Guides
+        </button>
+      ) : (
+        <div className="pt-2 pb-1"><div className="mx-auto h-px w-6" style={{ background: 'var(--border)' }} /></div>
+      )}
+      {(collapsed || expandedGroups.guides) && guideItems.map(renderNavItem)}
+
+      {/* ⚙️ Settings (collapsible) */}
+      {!collapsed ? (
+        <button
+          onClick={() => setExpandedGroups(prev => ({ ...prev, settings: !prev.settings }))}
+          className="flex w-full items-center gap-1.5 px-4 pt-2.5 pb-1 text-[9px] font-medium tracking-[1.5px] uppercase font-mono"
+          style={{ color: 'var(--text4)' }}
+        >
+          <ChevronDown
+            className="h-3 w-3 transition-transform"
+            style={{ transform: expandedGroups.settings ? 'rotate(0deg)' : 'rotate(-90deg)' }}
+          />
+          Settings
+        </button>
+      ) : (
+        <div className="pt-2 pb-1"><div className="mx-auto h-px w-6" style={{ background: 'var(--border)' }} /></div>
+      )}
+      {(collapsed || expandedGroups.settings) && settingsItems.map(renderNavItem)}
 
       {/* ⚙️ Workflow Mini-Tracker */}
       {!collapsed && workflowSteps && workflowSteps.length > 0 && (

@@ -2,6 +2,7 @@ import React from "react"
 import type { Metadata } from 'next'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from 'sonner'
+import { AriaLiveProvider } from '@/components/aria-live-announcer'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -27,7 +28,17 @@ export default function RootLayout({
         style={{ fontFamily: "'Open Sans', system-ui, sans-serif" }}
         suppressHydrationWarning
       >
-        {children}
+        {/* Skip to content link for keyboard / screen reader accessibility */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[9999] focus:rounded-md focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:outline-none"
+          style={{ background: 'var(--nn-accent, #00A3FF)' }}
+        >
+          Skip to content
+        </a>
+        <AriaLiveProvider>
+          {children}
+        </AriaLiveProvider>
         <Toaster position="bottom-right" richColors closeButton />
         <Analytics />
       </body>
