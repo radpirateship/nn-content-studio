@@ -78,34 +78,27 @@ export function ProductCatalogManager({ onProductsLoaded }: ProductCatalogManage
     }
   }
 
+  const loadAllProducts = useCallback(async () => {
+    try {
+      const response = await fetch('/api/products?limit=500')
+      if (response.ok) {
+        const data = await response.json()
+        setDbStatus({ count: data.total || 0 })
+        setTotalCount(data.total || 0)
+        setProducts(data.products || [])
+        setCategories(data.categories || [])
+        if (data.total > 0) onProductsLoaded?.(data.total)
+      }
+    } catch {
+      // ignore
+    }
+  }, [onProductsLoaded])
+
   // Fetch current database status on mount
   useEffect(() => {
-    async function fetchStatus() {
-      try {
-        const response = await fetch('/api/products?status=true')
-        if (response.ok) {
-          const data = await response.json()
-          setDbStatus({ count: data.total || 0 })
-          if (data.total > 0) {
-            setTotalCount(data.total)
-            setProducts(data.products || [])
-            setCategories(data.categories || [])
-            onProductsLoaded?.(data.total)
-          } else {
-            setTotalCount(0)
-            setProducts([])
-            setCategories([])
-          }
-        }
-      } catch {
-        // Ignore errors on status check
-      } finally {
-        setStatusLoading(false)
-      }
-    }
     setStatusLoading(true)
-    fetchStatus()
-  }, [onProductsLoaded])
+    loadAllProducts().finally(() => setStatusLoading(false))
+  }, [loadAllProducts])
 
   const parseCSVLine = (line: string): string[] => {
     const values: string[] = []
@@ -252,11 +245,10 @@ export function ProductCatalogManager({ onProductsLoaded }: ProductCatalogManage
       }
 
       const data = await response.json()
-      setProducts(data.sample || [])
-      setCategories(data.categories || [])
       setTotalCount(data.count || 0)
       setDbStatus({ count: data.count || 0 })
       onProductsLoaded?.(data.count)
+      await loadAllProducts()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to process file')
     } finally {
@@ -455,37 +447,40 @@ export function ProductCatalogManager({ onProductsLoaded }: ProductCatalogManage
               </Select>
             </div>
 
+            {/* Result count */}
+            <p className="text-xs text-muted-foreground px-0.5">
+              {searchTerm || selectedCategory !== 'all'
+                ? `Showing ${filteredProducts.length} of ${products.length} products`
+                : `${products.length} products`}
+            </p>
+
             {/* Product List */}
-            <ScrollArea className="h-64 rounded-lg border border-border/50">
+            <ScrollArea className="h-[520px] rounded-lg border border-border/50">
               <div className="divide-y divide-border/50">
                 {filteredProducts.map((product) => (
-                  <div key={product.id} className="flex items-center gap-3 p-3">
+                  <div key={product.id} className="flex items-center gap-3 p-3 hover:bg-muted/30 transition-colors">
                     {product.imageUrl ? (
                       <img
-                        src={product.imageUrl || "/placeholder.svg"}
+                        src={product.imageUrl}
                         alt={product.title}
-                        className="h-12 w-12 rounded-md object-cover"
+                        className="h-10 w-10 rounded-md object-cover shrink-0"
                       />
                     ) : (
-                      <div className="flex h-12 w-12 items-center justify-center rounded-md bg-muted">
-                        <Package className="h-5 w-5 text-muted-foreground" />
+                      <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted shrink-0">
+                        <Package className="h-4 w-4 text-muted-foreground" />
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{product.title}</p>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        {product.price && <span>{product.price}</span>}
-                        {product.vendor && (
-                          <>
-                            <span>{'|'}</span>
-                            <span>{product.vendor}</span>
-                          </>
-                        )}
-                      </div>
+                      <p className="text-sm font-medium truncate leading-tight">{product.title}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {product.price ? `$${product.price}` : ''}
+                        {product.price && product.vendor ? ' · ' : ''}
+                        {product.vendor || ''}
+                      </p>
                     </div>
-                    {product.productType && (
-                      <Badge variant="secondary" className="shrink-0">
-                        {product.productType}
+                    {(product.category || product.productType) && (
+                      <Badge variant="secondary" className="shrink-0 text-xs capitalize">
+                        {(product.category || product.productType || '').replace(/-/g, ' ')}
                       </Badge>
                     )}
                   </div>
