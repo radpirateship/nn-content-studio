@@ -169,7 +169,8 @@ export default function ContentStudio() {
             createdAt: new Date(a.created_at),
           }))
           setArticles(articlesWithDates)
-
+          // Mark DB as active so the topbar indicator stays green
+          ;(window as any).__recordDbActivity?.()
         }
       } catch (error) {
         console.error('[loadArticles] Failed to load articles from DB:', error)
