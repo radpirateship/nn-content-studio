@@ -1097,7 +1097,7 @@ export default function ContentStudio() {
                   onStatusChange={handleStatusChange}
                   onPublish={() => setActiveView('publish-confirm')}
                   internalLinks={availableInternalLinks}
-                  onGoToStep={() => setActiveView('article-links')}
+                  onGoToStep={(step) => setActiveView(step === 3 ? 'article-images' : 'article-links')}
                 />
               ) : (
                 <ArticleEditor article={currentArticle} onSave={handleSaveEdit} onCancel={() => setIsEditing(false)} />
@@ -1171,7 +1171,7 @@ export default function ContentStudio() {
                   onStatusChange={handleStatusChange}
                   onPublish={() => setActiveView('publish-confirm')}
                   internalLinks={availableInternalLinks}
-                  onGoToStep={() => setActiveView('article-links')}
+                  onGoToStep={(step) => setActiveView(step === 3 ? 'article-images' : 'article-links')}
                 />
               </div>
             </div>
