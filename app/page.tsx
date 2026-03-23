@@ -155,7 +155,8 @@ export default function ContentStudio() {
         const response = await fetch('/api/articles')
         if (response.ok) {
           const data = await response.json()
-          const articlesWithDates = data.map((a: { id: string; title: string; slug: string; category: string; keyword: string; status: string; word_count: number; meta_description?: string; products?: unknown[]; created_at: string; updated_at: string }) => ({
+          const rows = Array.isArray(data) ? data : (data.items ?? [])
+          const articlesWithDates = rows.map((a: { id: string; title: string; slug: string; category: string; keyword: string; status: string; word_count: number; meta_description?: string; products?: unknown[]; created_at: string; updated_at: string }) => ({
             id: `article-${a.id}`,
             dbId: a.id,
             title: a.title,
