@@ -427,7 +427,7 @@ export function ContentResourcesManager({
               <SelectTrigger className="w-[280px]">
                 <SelectValue placeholder="Select a collection..." />
               </SelectTrigger>
-              <SelectContent position="popper" className="z-50">
+              <SelectContent>
                 {allCollections.map((col) => (
                   <SelectItem key={col.slug} value={col.slug}>
                     <span className="flex items-center gap-2">
