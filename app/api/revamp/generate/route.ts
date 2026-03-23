@@ -12,6 +12,7 @@ import { randomUUID } from "crypto"
 import { revampGenerateRequestSchema } from "@/lib/api-schemas"
 import { getErrorMessage, logRouteEvent, parseAndValidateJson } from "@/lib/api-utils"
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit"
+import { apiSuccess, apiError } from "@/lib/api-response"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -798,7 +799,7 @@ ${faqSchema}`.trim()
       },
     })
 
-    return NextResponse.json({ success: true, article })
+    return apiSuccess({ article })
   } catch (error) {
     console.error("[revamp/generate] Error:", error)
     logRouteEvent("Revamp generate failed", {
@@ -808,9 +809,9 @@ ${faqSchema}`.trim()
       durationMs: Date.now() - startedAt,
       metadata: { error: getErrorMessage(error, "Failed to generate revamped content") },
     })
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to generate revamped content" },
-      { status: 500 }
+    return apiError(
+      error instanceof Error ? error.message : "Failed to generate revamped content",
+      500
     )
   }
 }

@@ -1,5 +1,8 @@
-// Product store — provides both in-memory (for POST/DELETE flows) and
-// DB-backed (for cold-start-safe recommendations) access to products.
+// Product store — DB-backed product access for all routes.
+// The old in-memory ProductStore singleton has been removed to prevent
+// race conditions and cold-start emptiness in serverless environments.
+// All reads now go directly to the database.
+
 import { getSQL } from "@/lib/db";
 
 export interface Product {
@@ -20,8 +23,9 @@ export interface Product {
   url?: string;
 }
 
-// Category keywords for supplement matching
-const CATEGORY_KEYWORDS: Record<string, string[]> = {
+// Category keywords for supplement matching — exported so routes and
+// recommendation logic can share the same keyword definitions.
+export const CATEGORY_KEYWORDS: Record<string, string[]> = {
   'whey-protein': ['whey', 'whey protein', 'whey isolate', 'whey concentrate', 'grass-fed whey'],
   'casein-protein': ['casein', 'casein protein', 'micellar casein', 'slow-release protein'],
   'pea-protein': ['pea protein', 'plant protein', 'plant-based protein', 'hemp protein', 'vegan protein'],
@@ -43,99 +47,7 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   'general-nutrition': ['nutrition', 'supplement', 'health', 'wellness'],
 };
 
-class ProductStore {
-  private products: Product[] = [];
-
-  setProducts(products: Product[]) {
-    this.products = products;
-  }
-
-  clear() {
-    this.products = [];
-  }
-
-  getAll(): Product[] {
-    return this.products;
-  }
-
-  getByCategory(category: string): Product[] {
-    const keywords = CATEGORY_KEYWORDS[category] || [category];
-    
-    return this.products.filter((p) => {
-      const searchText = [
-        p.title,
-        p.description,
-        p.productType,
-        p.tags,
-        p.vendor
-      ].filter(Boolean).join(' ').toLowerCase();
-      
-      return keywords.some(keyword => searchText.includes(keyword.toLowerCase()));
-    });
-  }
-  
-  // Get wellness category for a product
-  detectCategory(product: Product): string | null {
-    const searchText = [
-      product.title,
-      product.description,
-      product.productType,
-      product.tags
-    ].filter(Boolean).join(' ').toLowerCase();
-    
-    for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
-      if (keywords.some(keyword => searchText.includes(keyword.toLowerCase()))) {
-        return category;
-      }
-    }
-    return null;
-  }
-
-  getCategories(): string[] {
-    const categories = new Set<string>();
-
-    this.products.forEach((p) => {
-      if (p.category) categories.add(p.category);
-      if (p.productType) categories.add(p.productType);
-    });
-
-    return Array.from(categories).filter(Boolean).sort();
-  }
-
-  search(query: string): Product[] {
-    const queryLower = query.toLowerCase();
-    return this.products.filter(
-      (p) =>
-        p.title?.toLowerCase().includes(queryLower) ||
-        p.description?.toLowerCase().includes(queryLower) ||
-        p.vendor?.toLowerCase().includes(queryLower) ||
-        p.tags?.toLowerCase().includes(queryLower)
-    );
-  }
-
-  getRecommendations(category: string, limit: number = 3): Product[] {
-    const categoryProducts = this.getByCategory(category);
-
-    // Prioritize products with images and prices
-    const sorted = categoryProducts.sort((a, b) => {
-      const aScore = (a.imageUrl ? 2 : 0) + (a.price ? 1 : 0);
-      const bScore = (b.imageUrl ? 2 : 0) + (b.price ? 1 : 0);
-      return bScore - aScore;
-    });
-
-    return sorted.slice(0, limit);
-  }
-
-  getCount(): number {
-    return this.products.length;
-  }
-}
-
-export const productStore = new ProductStore();
-
-// ── DB-backed functions (cold-start safe) ──────────────────────────────────
-// These query the products table directly, so they work even on a fresh
-// serverless instance where the in-memory store is empty.
+// ── DB-backed functions ─────────────────────────────────────────────────────
 
 function rowToProduct(row: Record<string, unknown>): Product {
   return {
@@ -159,8 +71,7 @@ function rowToProduct(row: Record<string, unknown>): Product {
 
 /**
  * Fetch product recommendations from the database for a given category.
- * Uses CATEGORY_KEYWORDS to build an ILIKE query, then ranks by image + price.
- * Falls back to the in-memory store if the DB query fails.
+ * Uses CATEGORY_KEYWORDS to build a keyword filter, then ranks by image + price.
  */
 export async function getProductRecommendationsFromDB(
   category: string,
@@ -171,12 +82,12 @@ export async function getProductRecommendationsFromDB(
     const keywords = CATEGORY_KEYWORDS[category] || [category.replace(/-/g, " ")];
 
     // Fetch all products from DB (the table is small — typically <1000 rows)
-    // and filter/sort in JS using the same keyword logic as the in-memory store.
+    // and filter/sort in JS using the keyword logic.
     const allRows = await sql`SELECT * FROM products ORDER BY title LIMIT 500`;
 
     if (allRows.length === 0) {
-      console.warn(`[product-store] No products in DB — falling back to in-memory store`);
-      return productStore.getRecommendations(category, limit);
+      console.warn(`[product-store] No products in DB for category "${category}"`);
+      return [];
     }
 
     const allProducts = allRows.map(rowToProduct);
@@ -201,7 +112,7 @@ export async function getProductRecommendationsFromDB(
     );
     return sorted.slice(0, limit);
   } catch (err) {
-    console.error("[product-store] DB query failed, falling back to in-memory:", err);
-    return productStore.getRecommendations(category, limit);
+    console.error("[product-store] DB query failed:", err);
+    return [];
   }
 }

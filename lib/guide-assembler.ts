@@ -270,6 +270,36 @@ em { color: var(--text-secondary); }
 }
 </style>`
 
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+/**
+ * Extract the text content of an element identified by its CSS class name,
+ * using indexOf-based parsing instead of regex to avoid backtracking risks
+ * on malformed HTML. Returns the stripped plain text, or null if not found.
+ */
+function extractTagContent(html: string, className: string): string | null {
+  // Find the class marker
+  const classMarker = `class="${className}"`
+  const classIdx = html.indexOf(classMarker)
+  if (classIdx === -1) return null
+
+  // Find the closing > of the opening tag
+  const openClose = html.indexOf('>', classIdx + classMarker.length)
+  if (openClose === -1) return null
+
+  // Find the next closing tag (</button>, </div>, etc.) after the content starts.
+  // We look for the first </ after the content start, which handles both
+  // <button> and <div> wrappers without needing to know the tag name.
+  const contentStart = openClose + 1
+  const closingTagIdx = html.indexOf('</', contentStart)
+  if (closingTagIdx === -1) return null
+
+  const rawContent = html.slice(contentStart, closingTagIdx)
+  // Strip any nested HTML tags and normalise whitespace
+  const text = rawContent.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+  return text || null
+}
+
 // ─── Schema JSON-LD ─────────────────────────────────────────────────────────
 
 function buildSchema(
@@ -279,21 +309,15 @@ function buildSchema(
   const faqHtml = sectionContent['faq'] || ''
   const faqPairs: Array<{ q: string; a: string }> = []
 
-  // Extract FAQ pairs by splitting on the nn-faq-item markers rather than
-  // using a single regex with nested lazy quantifiers (which can cause
-  // catastrophic backtracking on malformed HTML with missing closing tags).
+  // Extract FAQ pairs using indexOf-based extraction instead of regex with
+  // [\s\S]*? lazy quantifiers, which can cause catastrophic backtracking
+  // on malformed HTML with missing closing tags.
   const faqItemChunks = faqHtml.split(/class="nn-faq-item"/)
   for (let i = 1; i < faqItemChunks.length && faqPairs.length < 5; i++) {
     const chunk = faqItemChunks[i]
-    // Extract question text between nn-faq-q button tags
-    const qMatch = chunk.match(/<button[^>]*class="nn-faq-q"[^>]*>([\s\S]*?)<\/button>/)
-    // Extract answer text between nn-faq-a div tags
-    const aMatch = chunk.match(/<div[^>]*class="nn-faq-a"[^>]*>([\s\S]*?)<\/div>/)
-    if (qMatch && aMatch) {
-      const q = qMatch[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
-      const a = aMatch[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
-      if (q && a) faqPairs.push({ q, a })
-    }
+    const q = extractTagContent(chunk, 'nn-faq-q')
+    const a = extractTagContent(chunk, 'nn-faq-a')
+    if (q && a) faqPairs.push({ q, a })
   }
 
   const products = guide.selected_products || []

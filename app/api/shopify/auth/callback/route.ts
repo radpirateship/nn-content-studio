@@ -60,14 +60,37 @@ export async function GET(request: NextRequest) {
 
     const tokenData = await tokenRes.json();
     const accessToken = tokenData.access_token;
-        // Token logged in masked form below — never log full token
-    const scope = tokenData.scope;
+    const scope: string = tokenData.scope || "";
 
     console.log("[shopify-auth-callback] SUCCESS! Got access token:", accessToken?.slice(0, 12) + "...");
     console.log("[shopify-auth-callback] Scopes:", scope);
 
+    // Validate that the token includes the scopes required by NN Content Studio.
+    // Missing scopes cause confusing downstream failures (e.g. 403 on file upload).
+    const REQUIRED_SCOPES = [
+      "write_content",       // Blog posts and pages
+      "read_products",       // Product catalog
+      "write_files",         // Image upload to Shopify CDN
+    ];
+    const grantedScopes = scope.split(",").map((s: string) => s.trim());
+    const missingScopes = REQUIRED_SCOPES.filter(
+      (required) => !grantedScopes.includes(required)
+    );
+    const hasScopeWarning = missingScopes.length > 0;
+    if (hasScopeWarning) {
+      console.warn("[shopify-auth-callback] Missing required scopes:", missingScopes.join(", "));
+    }
+
     // Display the token for the user to copy into env vars
     // In production you'd store this in a database
+    const scopeWarningHtml = hasScopeWarning
+      ? `<div class="warning" style="background:#fef2f2;border-color:#ef4444;">
+           <strong>Missing required scopes:</strong> <code>${missingScopes.join(", ")}</code>
+           <br><br>
+           Without these scopes, publishing, image upload, or product fetching will fail.
+           Re-install the app with the correct scopes to fix this.
+         </div>`
+      : "";
     const html = `
       <!DOCTYPE html>
       <html>
@@ -95,6 +118,7 @@ export async function GET(request: NextRequest) {
           <br><br>
           This token is permanent and will not expire (unless you uninstall the app).
         </div>
+        ${scopeWarningHtml}
         <p>Scopes granted: <code>${scope}</code></p>
       </body>
       </html>

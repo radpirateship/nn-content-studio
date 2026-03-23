@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { productStore, type Product } from "@/lib/product-store";
+import { type Product, CATEGORY_KEYWORDS } from "@/lib/product-store";
 import { getCollectionProducts, getProducts, CATEGORY_TO_COLLECTION } from "@/lib/shopify";
 import { getSQL } from "@/lib/db";
 
@@ -9,14 +9,34 @@ export const dynamic = "force-dynamic";
 
 export async function generateStaticParams() { return [] }
 
-// Load products from database into memory store on first request
-let isInitialized = false;
+// ── Row mapper ──────────────────────────────────────────────────────────────
 
-// Fetch products from Shopify Storefront API
+function rowToProduct(row: Record<string, unknown>): Product {
+  return {
+    id: String(row.id ?? ""),
+    title: (row.title as string) || "",
+    description: (row.description as string) || "",
+    price: (row.price as string) || "",
+    compareAtPrice: (row.compare_at_price as string) || "",
+    sku: (row.sku as string) || "",
+    vendor: (row.vendor as string) || "",
+    productType: (row.product_type as string) || "",
+    tags: (row.tags as string) || "",
+    category: (row.category as string) || "",
+    imageUrl: (row.image_url as string) || "",
+    handle: (row.handle as string) || "",
+    status: (row.status as string) || "active",
+    inventoryQty: (row.inventory_qty as string) || "",
+    url: (row.url as string) || "",
+  };
+}
+
+// ── Fetch products from Shopify Storefront API ──────────────────────────────
+
 async function fetchFromShopify(category?: string, limit = 8): Promise<Product[]> {
   try {
     const collectionHandle = category ? (CATEGORY_TO_COLLECTION[category] || category) : "all";
-    
+
     let shopifyProducts;
     if (collectionHandle === "all") {
       shopifyProducts = await getProducts({ first: limit, sortKey: "BEST_SELLING" });
@@ -27,7 +47,7 @@ async function fetchFromShopify(category?: string, limit = 8): Promise<Product[]
         sortKey: "BEST_SELLING",
       });
     }
-    
+
     return shopifyProducts.map((p) => ({
       id: p.id,
       title: p.title || "",
@@ -46,44 +66,56 @@ async function fetchFromShopify(category?: string, limit = 8): Promise<Product[]
       url: `https://nakednutrition.com/products/${p.handle}`,
     }));
   } catch (error) {
-    console.error("[v0] Failed to fetch from Shopify:", error);
+    console.error("[products] Failed to fetch from Shopify:", error);
     return [];
   }
 }
 
-async function initializeFromDatabase(collectionSlug?: string) {
-  if (isInitialized && productStore.getAll().length > 0 && !collectionSlug) return;
-  
+// ── DB helpers ──────────────────────────────────────────────────────────────
+
+/**
+ * Fetch all products from the DB, optionally filtered by collection slug.
+ * Returns an empty array (never throws) so callers can fall through.
+ */
+async function fetchProductsFromDB(collectionSlug?: string | null): Promise<Product[]> {
   try {
     const sql = getSQL();
     const rows = collectionSlug
       ? await sql`SELECT * FROM products WHERE collection_slug = ${collectionSlug} ORDER BY title`
-      : await sql`SELECT * FROM products ORDER BY title`;
-    if (rows.length > 0) {
-      const products: Product[] = rows.map(row => ({
-        id: row.id.toString(),
-        title: row.title || "",
-        description: row.description || "",
-        price: row.price || "",
-        compareAtPrice: row.compare_at_price || "",
-        sku: row.sku || "",
-        vendor: row.vendor || "",
-        productType: row.product_type || "",
-        tags: row.tags || "",
-        category: row.category || "",
-        imageUrl: row.image_url || "",
-        handle: row.handle || "",
-        status: row.status || "active",
-        inventoryQty: row.inventory_qty || "",
-        url: row.url || "",
-      }));
-      productStore.setProducts(products);
-      console.log(`[v0] Loaded ${products.length} products from database${collectionSlug ? ` (collection: ${collectionSlug})` : ''}`);
-    }
-    isInitialized = true;
+      : await sql`SELECT * FROM products ORDER BY title LIMIT 500`;
+    return rows.map(rowToProduct);
   } catch (error) {
-    console.error("[v0] Failed to load products from database:", error);
+    console.error("[products] DB query failed:", error);
+    return [];
   }
+}
+
+/**
+ * Extract unique category strings from a product list (DB-backed replacement
+ * for the old in-memory productStore.getCategories()).
+ */
+function extractCategories(products: Product[]): string[] {
+  const categories = new Set<string>();
+  for (const p of products) {
+    if (p.category) categories.add(p.category);
+    if (p.productType) categories.add(p.productType);
+  }
+  return Array.from(categories).filter(Boolean).sort();
+}
+
+/**
+ * Filter products by category using the same keyword matching as the old
+ * in-memory store, but operating on an array instead of mutable state.
+ */
+function filterByCategory(products: Product[], category: string): Product[] {
+  const keywords = CATEGORY_KEYWORDS[category] || [category.replace(/-/g, " ")];
+  return products.filter((p) => {
+    const text = [p.title, p.description, p.productType, p.tags, p.category, p.vendor]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return keywords.some((kw) => text.includes(kw.toLowerCase()));
+  });
 }
 
 // ============================================================================
@@ -138,15 +170,15 @@ function selectRelevantProducts(allProducts: Product[], searchTerms: string[], m
   }));
   scored.sort((a, b) => b.relevance !== a.relevance ? b.relevance - a.relevance : a.tiebreaker - b.tiebreaker);
   const topScore = scored[0]?.relevance || 0;
-  console.log(`[v0] Product scoring: ${scored.length} products, top score=${topScore}, search="${searchTerms.join(' ')}"`);
+  console.log(`[products] Product scoring: ${scored.length} products, top score=${topScore}, search="${searchTerms.join(' ')}"`);
   if (scored.length > 0) {
-    console.log(`[v0] Top 6 matches: ${scored.slice(0, 6).map(s => `${s.product.title?.slice(0, 40)} (${s.relevance})`).join(' | ')}`);
+    console.log(`[products] Top 6 matches: ${scored.slice(0, 6).map(s => `${s.product.title?.slice(0, 40)} (${s.relevance})`).join(' | ')}`);
   }
   return scored.slice(0, maxItems).map(s => s.product);
 }
 
 // ============================================================================
-// GET HANDLER
+// GET HANDLER — all reads go through the DB (cold-start safe, no race conditions)
 // ============================================================================
 
 export async function GET(request: NextRequest) {
@@ -157,69 +189,56 @@ export async function GET(request: NextRequest) {
   const limit = searchParams.get("limit");
   const maxItems = parseInt(limit || "8", 10);
 
-  console.log(`[Products GET] Incoming - category: "${category}", collection: "${collection}", search: "${search}"`);
+  console.log(`[products GET] category="${category}", collection="${collection}", search="${search}"`);
 
   const collectionSlug = collection || (category ? (CATEGORY_TO_COLLECTION[category] || category) : null);
-  console.log(`[Products GET] Resolved collectionSlug: "${collectionSlug}"`);
 
   // PRIORITY 1: Database products with relevance scoring
   if (collectionSlug && collectionSlug !== "all") {
+    const sql = getSQL();
     try {
-      const sql = getSQL();
       let rows = await sql`SELECT * FROM products WHERE collection_slug = ${collectionSlug}`;
-      console.log(`[Products GET] DB Query (exact slug = '${collectionSlug}') returned ${rows.length} rows.`);
+      console.log(`[products GET] DB (slug="${collectionSlug}") → ${rows.length} rows`);
 
-      // FALLBACK: If exact slug misses, try a broad ILIKE search
+      // Fallback: ILIKE search if exact slug misses
       if (rows.length === 0) {
         const fallbackTerm = `%${(category || collectionSlug).replace(/-/g, '%')}%`;
-        console.log(`[Products GET] Exact match missed. Falling back to ILIKE '${fallbackTerm}'`);
         rows = await sql`SELECT * FROM products WHERE category ILIKE ${fallbackTerm} OR product_type ILIKE ${fallbackTerm} OR collection_slug ILIKE ${fallbackTerm}`;
-        console.log(`[Products GET] DB Query (ILIKE) returned ${rows.length} rows.`);
+        console.log(`[products GET] DB (ILIKE) → ${rows.length} rows`);
       }
 
       if (rows.length > 0) {
-        const dbProducts: Product[] = rows.map(row => ({
-          id: row.id.toString(), title: row.title || "", description: row.description || "",
-          price: row.price || "", compareAtPrice: row.compare_at_price || "", sku: row.sku || "",
-          vendor: row.vendor || "", productType: row.product_type || "", tags: row.tags || "",
-          category: row.category || "", imageUrl: row.image_url || "", handle: row.handle || "",
-          status: row.status || "active", inventoryQty: row.inventory_qty || "", url: row.url || "",
-        }));
+        const dbProducts = rows.map(rowToProduct);
         const searchTerms = search ? extractSearchTerms(search) : [];
         const selectedProducts = searchTerms.length > 0
           ? selectRelevantProducts(dbProducts, searchTerms, maxItems)
           : selectRelevantProducts(dbProducts, collectionSlug.replace(/-/g, ' ').split(' '), maxItems);
-        console.log(`[v0] Products: matched ${selectedProducts.length}/${dbProducts.length} from DB (collection: ${collectionSlug})`);
         return NextResponse.json({ products: selectedProducts, total: dbProducts.length, source: "database-scored", collectionSlug });
-      } else {
-        console.log(`[Products GET] DB returned 0 rows. Falling through to Shopify API...`);
-        // No hard return — fall through to Priority 2
       }
     } catch (error) {
-      console.error("[v0] Failed to fetch scored products from DB:", error);
+      console.error("[products] DB scored query failed:", error);
     }
   }
 
   // PRIORITY 2: Shopify Storefront API fallback
   if (category && category !== "all") {
-    console.log(`[v0] Products: no DB products for "${collectionSlug}", trying Shopify API`);
+    console.log(`[products] No DB products for "${collectionSlug}", trying Shopify API`);
     const shopifyProducts = await fetchFromShopify(category, Math.max(maxItems * 4, 20));
     if (shopifyProducts.length > 0) {
       const searchTerms = search ? extractSearchTerms(search) : [];
       const selected = searchTerms.length > 0 ? selectRelevantProducts(shopifyProducts, searchTerms, maxItems) : shopifyProducts.slice(0, maxItems);
-      console.log(`[v0] Products: scored ${selected.length}/${shopifyProducts.length} from Shopify`);
       return NextResponse.json({ products: selected, total: shopifyProducts.length, source: "shopify-scored" });
     }
   }
 
-  // PRIORITY 3: In-memory store fallback
-  isInitialized = false;
-  await initializeFromDatabase();
-  let products = productStore.getAll();
+  // PRIORITY 3: All products from DB (no in-memory store dependency)
+  const allProducts = await fetchProductsFromDB(null);
+  let products = allProducts;
+
   if (category && category !== "all") {
-    products = productStore.getByCategory(category);
+    products = filterByCategory(allProducts, category);
     if (products.length === 0) {
-      const allProducts = productStore.getAll();
+      // Broad fallback: match any category word in product text
       const categoryWords = category.toLowerCase().replace(/-/g, ' ').split(' ');
       products = allProducts.filter(p => {
         const searchText = [p.title, p.description, p.productType, p.tags, p.vendor].filter(Boolean).join(' ').toLowerCase();
@@ -227,16 +246,21 @@ export async function GET(request: NextRequest) {
       });
     }
   }
+
   const totalBeforeLimit = products.length;
   if (search && products.length > 0) {
     const searchTerms = extractSearchTerms(search);
     if (searchTerms.length > 0) products = selectRelevantProducts(products, searchTerms, maxItems);
   } else {
     products = products.map(p => ({ product: p, sort: (p.imageUrl ? 100 : 0) + (p.price ? 10 : 0) + Math.random() * 5 }))
-      .sort((a, b) => b.sort - a.sort).slice(0, maxItems).map(s => s.product);
+      .sort((a: { sort: number }, b: { sort: number }) => b.sort - a.sort).slice(0, maxItems).map((s: { product: Product }) => s.product);
   }
-  return NextResponse.json({ products: products.slice(0, maxItems), total: totalBeforeLimit, categories: productStore.getCategories() });
+  return NextResponse.json({ products: products.slice(0, maxItems), total: totalBeforeLimit, categories: extractCategories(allProducts) });
 }
+
+// ============================================================================
+// POST HANDLER — writes to DB (source of truth)
+// ============================================================================
 
 export async function POST(request: NextRequest) {
   try {
@@ -264,9 +288,6 @@ export async function POST(request: NextRequest) {
       const lines = text.split("\n");
       if (lines.length < 2) return NextResponse.json({ error: "CSV file is empty or invalid" }, { status: 400 });
       const headers = parseCSVLine(lines[0]);
-      // Build a case-insensitive header lookup so both Shopify export format
-      // (Title, Handle, Body (HTML), Variant Price, Image Src) and NN custom
-      // format (title, handle, description, price, imageUrl) work
       const headerLower: Record<string, string> = {};
       headers.forEach((h) => { headerLower[h.trim().toLowerCase()] = h.trim(); });
       const col = (keys: string[]): string => {
@@ -324,75 +345,77 @@ export async function POST(request: NextRequest) {
 
     if (products.length === 0) return NextResponse.json({ error: "No products found in file" }, { status: 400 });
 
-    productStore.setProducts(products);
-
-    try {
-      const sql = getSQL();
-      if (collectionSlug) {
-        await sql`DELETE FROM products WHERE collection_slug = ${collectionSlug}`;
-      } else {
-        await sql`DELETE FROM products WHERE collection_slug IS NULL`;
-      }
-      const sortedProducts = [...products].sort((a, b) => (a.imageUrl && !b.imageUrl ? -1 : !a.imageUrl && b.imageUrl ? 1 : 0));
-      const productsToSave = sortedProducts.filter(p => p.title).slice(0, 1000);
-      const handleCounts: Record<string, number> = {};
-      for (let i = 0; i < productsToSave.length; i++) {
-        const p = productsToSave[i];
-        let uniqueHandle = p.handle || `product-${i}`;
-        if (handleCounts[uniqueHandle] !== undefined) {
-          handleCounts[uniqueHandle]++;
-          uniqueHandle = `${p.handle}-${handleCounts[uniqueHandle]}`;
-        } else {
-          handleCounts[uniqueHandle] = 0;
-        }
-        try {
-          await sql`
-            INSERT INTO products (handle, title, description, price, compare_at_price, sku, vendor, product_type, tags, category, image_url, status, inventory_qty, url, collection_slug)
-            VALUES (${uniqueHandle}, ${p.title}, ${p.description?.slice(0, 5000)}, ${p.price}, ${p.compareAtPrice}, ${p.sku}, ${p.vendor}, ${p.productType}, ${p.tags}, ${p.category}, ${p.imageUrl}, ${p.status}, ${p.inventoryQty}, ${p.url}, ${collectionSlug || null})
-            ON CONFLICT (handle) DO UPDATE SET
-              title = EXCLUDED.title, description = EXCLUDED.description, price = EXCLUDED.price,
-              compare_at_price = EXCLUDED.compare_at_price, vendor = EXCLUDED.vendor,
-              product_type = EXCLUDED.product_type, tags = EXCLUDED.tags, category = EXCLUDED.category,
-              image_url = EXCLUDED.image_url, status = EXCLUDED.status, inventory_qty = EXCLUDED.inventory_qty,
-              url = EXCLUDED.url, collection_slug = EXCLUDED.collection_slug
-          `;
-        } catch (e) {
-          console.error('[v0] Failed to insert product:', uniqueHandle, e);
-        }
-        if (i > 0 && i % 50 === 0) await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      console.log(`[v0] Saved ${productsToSave.length} products to database${collectionSlug ? ` (collection: ${collectionSlug})` : ''}`);
-    } catch (dbError) {
-      console.error("[v0] Failed to save products to database:", dbError);
+    // Write to DB (source of truth)
+    const sql = getSQL();
+    if (collectionSlug) {
+      await sql`DELETE FROM products WHERE collection_slug = ${collectionSlug}`;
+    } else {
+      await sql`DELETE FROM products WHERE collection_slug IS NULL`;
     }
+    const sortedProducts = [...products].sort((a, b) => (a.imageUrl && !b.imageUrl ? -1 : !a.imageUrl && b.imageUrl ? 1 : 0));
+    const productsToSave = sortedProducts.filter(p => p.title).slice(0, 1000);
+    const handleCounts: Record<string, number> = {};
+    for (let i = 0; i < productsToSave.length; i++) {
+      const p = productsToSave[i];
+      let uniqueHandle = p.handle || `product-${i}`;
+      if (handleCounts[uniqueHandle] !== undefined) {
+        handleCounts[uniqueHandle]++;
+        uniqueHandle = `${p.handle}-${handleCounts[uniqueHandle]}`;
+      } else {
+        handleCounts[uniqueHandle] = 0;
+      }
+      try {
+        await sql`
+          INSERT INTO products (handle, title, description, price, compare_at_price, sku, vendor, product_type, tags, category, image_url, status, inventory_qty, url, collection_slug)
+          VALUES (${uniqueHandle}, ${p.title}, ${p.description?.slice(0, 5000)}, ${p.price}, ${p.compareAtPrice}, ${p.sku}, ${p.vendor}, ${p.productType}, ${p.tags}, ${p.category}, ${p.imageUrl}, ${p.status}, ${p.inventoryQty}, ${p.url}, ${collectionSlug || null})
+          ON CONFLICT (handle) DO UPDATE SET
+            title = EXCLUDED.title, description = EXCLUDED.description, price = EXCLUDED.price,
+            compare_at_price = EXCLUDED.compare_at_price, vendor = EXCLUDED.vendor,
+            product_type = EXCLUDED.product_type, tags = EXCLUDED.tags, category = EXCLUDED.category,
+            image_url = EXCLUDED.image_url, status = EXCLUDED.status, inventory_qty = EXCLUDED.inventory_qty,
+            url = EXCLUDED.url, collection_slug = EXCLUDED.collection_slug
+        `;
+      } catch (e) {
+        console.error('[products] Failed to insert product:', uniqueHandle, e);
+      }
+      if (i > 0 && i % 50 === 0) await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    console.log(`[products] Saved ${productsToSave.length} products to DB${collectionSlug ? ` (collection: ${collectionSlug})` : ''}`);
 
-    isInitialized = true;
-    return NextResponse.json({ success: true, count: products.length, categories: productStore.getCategories(), collectionSlug: collectionSlug || null, sample: products.slice(0, 5) });
+    return NextResponse.json({
+      success: true,
+      count: products.length,
+      categories: extractCategories(products),
+      collectionSlug: collectionSlug || null,
+      sample: products.slice(0, 5),
+    });
   } catch (error) {
-    console.error("CSV parse error:", error);
+    console.error("[products] CSV parse error:", error);
     return NextResponse.json({ error: "Failed to parse CSV file" }, { status: 500 });
   }
 }
+
+// ============================================================================
+// DELETE HANDLER — clears DB (source of truth)
+// ============================================================================
 
 export async function DELETE(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const collection = searchParams.get("collection");
   try {
-    productStore.clear();
-    isInitialized = false;
-    try {
-      const sql = getSQL();
-      if (collection) await sql`DELETE FROM products WHERE collection_slug = ${collection}`;
-      else await sql`DELETE FROM products`;
-    } catch (dbError) {
-      console.error("[v0] Failed to clear products from database:", dbError);
-    }
+    const sql = getSQL();
+    if (collection) await sql`DELETE FROM products WHERE collection_slug = ${collection}`;
+    else await sql`DELETE FROM products`;
     return NextResponse.json({ success: true, message: collection ? `Products cleared for ${collection}` : "All products removed" });
   } catch (error) {
-    console.error("[v0] Error clearing products:", error);
+    console.error("[products] Error clearing products:", error);
     return NextResponse.json({ error: "Failed to clear products" }, { status: 500 });
   }
 }
+
+// ============================================================================
+// CSV parser
+// ============================================================================
 
 function parseCSVLine(line: string): string[] {
   const result: string[] = [];

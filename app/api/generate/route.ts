@@ -9,6 +9,7 @@ import { logActivity } from "@/lib/activity-log";
 import { generateArticleRequestSchema } from "@/lib/api-schemas";
 import { getErrorMessage, logRouteEvent, parseAndValidateJson } from "@/lib/api-utils";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 // ============================================================================
 // SVG icon for external links
@@ -644,16 +645,14 @@ ${faqSchema}`.trim();
       },
     });
 
-    return NextResponse.json({
-      success: true,
+    return apiSuccess({
       content: finalHtml,
       wordCount: targetWordCount,
       metaDescription: subtitle.trim().slice(0, 160),
       ...(bodyTruncated && {
-        warning: "The AI response was truncated (hit token limit). The article may have incomplete sections or unclosed HTML tags. Consider reducing word count or regenerating.",
         truncated: true,
       }),
-    });
+    }, bodyTruncated ? { warning: "The AI response was truncated (hit token limit). The article may have incomplete sections or unclosed HTML tags. Consider reducing word count or regenerating." } : undefined);
   } catch (error) {
     console.error("[v0] Generation error:", error);
     logRouteEvent("Generate article failed", {
@@ -669,9 +668,6 @@ ${faqSchema}`.trim();
       detail: "Article generation failed",
     });
     const message = error instanceof Error ? error.message : "Failed to generate content";
-    return NextResponse.json(
-      { error: message, detail: "Article generation failed. This could be an AI API issue, a timeout, or an input problem. Check the error message above and try again." },
-      { status: 500 }
-    );
+    return apiError(message, 500, "Article generation failed. This could be an AI API issue, a timeout, or an input problem. Check the error message above and try again.");
   }
 }

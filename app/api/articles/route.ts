@@ -3,6 +3,7 @@ import { getSQL } from "@/lib/db";
 import { logActivity } from "@/lib/activity-log";
 import { createArticleSchema, updateArticleSchema } from "@/lib/api-schemas";
 import { getErrorMessage, logRouteEvent, parseAndValidateJson } from "@/lib/api-utils";
+import { apiSuccess, apiError, apiList } from "@/lib/api-response";
 
 // GET - Fetch all articles or a specific article
 export async function GET(request: NextRequest) {
@@ -16,9 +17,9 @@ export async function GET(request: NextRequest) {
         SELECT * FROM articles WHERE id = ${id}
       `;
       if (articles.length === 0) {
-        return NextResponse.json({ error: "Article not found" }, { status: 404 });
+        return apiError("Article not found", 404);
       }
-      return NextResponse.json(articles[0]);
+      return apiSuccess(articles[0]);
     }
 
     const articles = await sql`
@@ -26,13 +27,10 @@ export async function GET(request: NextRequest) {
       FROM articles
       ORDER BY created_at DESC
     `;
-    return NextResponse.json(articles);
+    return apiList(articles, articles.length);
   } catch (error) {
     console.error("Error fetching articles:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch articles" },
-      { status: 500 }
-    );
+    return apiError("Failed to fetch articles", 500);
   }
 }
 
@@ -108,10 +106,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!savedArticle) {
-      return NextResponse.json(
-        { error: "Failed to generate unique slug after retries" },
-        { status: 409 }
-      );
+      return apiError("Failed to generate unique slug after retries", 409);
     }
 
     const articles = [savedArticle];
@@ -122,7 +117,7 @@ export async function POST(request: NextRequest) {
       durationMs: Date.now() - startedAt,
     });
 
-    return NextResponse.json(articles[0], { status: 201 });
+    return apiSuccess(articles[0]);
   } catch (error) {
     console.error("Error creating article:", error);
     logRouteEvent("Article create failed", {
@@ -137,10 +132,7 @@ export async function POST(request: NextRequest) {
       status: "error",
       detail: "Unknown article",
     });
-    return NextResponse.json(
-      { error: "Failed to create article" },
-      { status: 500 }
-    );
+    return apiError("Failed to create article", 500);
   }
 }
 
@@ -197,7 +189,7 @@ export async function PUT(request: NextRequest) {
     `;
 
     if (articles.length === 0) {
-      return NextResponse.json({ error: "Article not found" }, { status: 404 });
+      return apiError("Article not found", 404);
     }
 
     logRouteEvent("Article updated", {
@@ -206,7 +198,7 @@ export async function PUT(request: NextRequest) {
       durationMs: Date.now() - startedAt,
     });
 
-    return NextResponse.json(articles[0]);
+    return apiSuccess(articles[0]);
   } catch (error) {
     console.error("Error updating article:", error);
     logRouteEvent("Article update failed", {
@@ -216,10 +208,7 @@ export async function PUT(request: NextRequest) {
       durationMs: Date.now() - startedAt,
       metadata: { error: getErrorMessage(error, "Failed to update article") },
     });
-    return NextResponse.json(
-      { error: "Failed to update article" },
-      { status: 500 }
-    );
+    return apiError("Failed to update article", 500);
   }
 }
 
@@ -231,17 +220,14 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get("id");
 
     if (!id) {
-      return NextResponse.json({ error: "Article ID required" }, { status: 400 });
+      return apiError("Article ID required", 400);
     }
 
     await sql`DELETE FROM articles WHERE id = ${id}`;
 
-    return NextResponse.json({ success: true });
+    return apiSuccess({ success: true });
   } catch (error) {
     console.error("Error deleting article:", error);
-    return NextResponse.json(
-      { error: "Failed to delete article" },
-      { status: 500 }
-    );
+    return apiError("Failed to delete article", 500);
   }
 }

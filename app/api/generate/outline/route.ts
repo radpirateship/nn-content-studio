@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { callAI } from "@/lib/ai";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import type { ArticleOutline } from "@/lib/types";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
 /**
  * POST /api/generate/outline
@@ -18,10 +19,7 @@ export async function POST(request: NextRequest) {
     const { title, keyword, category } = await request.json();
 
     if (!title || !keyword || !category) {
-      return NextResponse.json(
-        { error: "title, keyword, and category are required" },
-        { status: 400 }
-      );
+      return apiError("title, keyword, and category are required", 400);
     }
 
     const systemPrompt = `You are an expert SEO content strategist for Naked Nutrition, specializing in supplements and sports nutrition content. Create detailed, SEO-optimized article outlines that will rank well and provide genuine value to readers interested in ${category}.`;
@@ -76,10 +74,7 @@ Return ONLY the JSON object, no additional text.`;
         "Failed to parse outline JSON:",
         outlineText.slice(0, 500)
       );
-      return NextResponse.json(
-        { error: "Invalid outline format from AI" },
-        { status: 500 }
-      );
+      return apiError("Invalid outline format from AI", 500);
     }
 
     const outline: ArticleOutline = {
@@ -97,19 +92,15 @@ Return ONLY the JSON object, no additional text.`;
       faqQuestions: parsed.faqQuestions || [],
     };
 
-    return NextResponse.json({
+    return apiSuccess({
       outline,
       suggestedKeywords: parsed.suggestedKeywords || [],
-      success: true,
     });
   } catch (error) {
     console.error("Generate outline error:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Failed to generate outline",
-      },
-      { status: 500 }
+    return apiError(
+      error instanceof Error ? error.message : "Failed to generate outline",
+      500
     );
   }
 }

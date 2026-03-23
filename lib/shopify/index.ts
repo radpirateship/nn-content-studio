@@ -4,18 +4,30 @@ import { DEFAULT_PAGE_SIZE, DEFAULT_SORT_KEY } from "./constants";
 import { withRetry } from "../retry";
 
 const SHOPIFY_API_VERSION = "2025-01";
-const HARDCODED_DOMAIN = "nakednutrition.myshopify.com";
 const SHOPIFY_TIMEOUT_MS = 15_000; // 15 seconds per request
 
 // Read ALL Shopify config lazily at request time (not module load)
 function getShopifyConfig() {
   const rawDomain = process.env.SHOPIFY_STORE_DOMAIN || process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN || "";
-  
+
+  if (!rawDomain) {
+    throw new Error(
+      "SHOPIFY_STORE_DOMAIN (or NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN) is not set. " +
+      "Add it in your .env.local file (e.g. nakednutrition.myshopify.com)."
+    );
+  }
+
   // Validate the domain looks like an actual domain (contains a dot)
-  // The Shopify integration sometimes sets these to API keys/tokens instead of domains
+  // and isn't accidentally set to an API key/token (starts with "shp")
   const isValidDomain = rawDomain.includes(".") && !rawDomain.startsWith("shp");
-  const domain = isValidDomain ? parseShopifyDomain(rawDomain) : HARDCODED_DOMAIN;
-  
+  if (!isValidDomain) {
+    throw new Error(
+      `SHOPIFY_STORE_DOMAIN is set to "${rawDomain.slice(0, 20)}…" which does not look like a valid domain. ` +
+      `Expected a value like "your-store.myshopify.com".`
+    );
+  }
+
+  const domain = parseShopifyDomain(rawDomain);
   const url = `https://${domain}/api/${SHOPIFY_API_VERSION}/graphql.json`;
   const token = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN;
   return { domain, url, token };

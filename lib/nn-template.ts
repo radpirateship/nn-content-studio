@@ -145,7 +145,7 @@ details[open] .nn-faq-question::before{content:"−"}
 .nn-email-gate{padding:1.5rem}
 .nn-topnav{justify-content:center}
 .nn-product-hero{flex-direction:column;padding:2rem;text-align:center}
-.nn-product-hero-image{width:200px;height:200px;margin:0 auto}
+.nn-product-hero-image{width:min(200px,60vw);height:auto;aspect-ratio:1;margin:0 auto}
 .nn-testimonials-grid{grid-template-columns:1fr}
 .nn-quick-answer{padding:1.25rem}
 }

@@ -121,6 +121,7 @@ export function ArticleGeneratorForm({ onSubmit, onBulkSubmit, isGenerating, ini
     if (!formData.title.trim()) errors.title = 'Title is required'
     else if (formData.title.trim().length < 10) errors.title = 'Title should be at least 10 characters'
     if (!formData.keyword.trim()) errors.keyword = 'Target keyword is required'
+    else if (formData.keyword.trim().length < 3) errors.keyword = 'Keyword should be at least 3 characters'
     if (formData.wordCount && (formData.wordCount < 300 || formData.wordCount > 10000)) {
       errors.wordCount = 'Word count should be between 300 and 10,000'
     }

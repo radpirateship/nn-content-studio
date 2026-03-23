@@ -741,7 +741,7 @@ function ConceptCard({
               <img
                 src={concept.imageUrl}
                 alt={concept.label}
-                className="h-full w-full object-cover"
+                className="w-full object-contain"
                 style={{ aspectRatio: '16/9' }}
               />
             ) : (

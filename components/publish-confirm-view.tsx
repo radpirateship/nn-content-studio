@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Check, ExternalLink, FilePlus, BookOpen, Clock, Loader2, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
 import type { GeneratedArticle } from '@/lib/types'
 import { buildShopifyTags } from '@/lib/tagMapping'
 
@@ -80,6 +81,18 @@ export function PublishConfirmView({ article, onBackToEditor, onNewArticle, onVi
       // Store the resolved blog handle so schema markup uses the correct URL
       onArticleUpdate?.({ shopifyBlogHandle: resolvedBlogHandle })
       onStatusChange?.(article.id, 'published')
+
+      // Surface sitemap ping failures so the user knows indexing may be delayed
+      if (result.sitemapPing) {
+        const failed = Object.entries(result.sitemapPing as Record<string, string>)
+          .filter(([, status]) => status !== 'sent')
+          .map(([engine]) => engine)
+        if (failed.length > 0) {
+          toast.warning('Some search engine pings failed', {
+            description: `${failed.join(', ')} did not respond. Indexing may be delayed.`,
+          })
+        }
+      }
     } catch (err) {
       setPublishError(err instanceof Error ? err.message : 'Failed to publish')
       setPhase('error')

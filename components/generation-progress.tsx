@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react"
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import {
   FileText,
@@ -12,6 +13,8 @@ import {
   Loader2,
   AlertCircle,
   Clock,
+  RotateCcw,
+  X,
 } from 'lucide-react'
 import type { GenerationStep } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -20,6 +23,10 @@ interface GenerationProgressProps {
   step: GenerationStep
   progress: number
   message: string
+  /** Called when the user clicks "Try Again" after an error */
+  onRetry?: () => void
+  /** Called when the user dismisses the progress card (error or complete) */
+  onDismiss?: () => void
 }
 
 const STEPS: { key: GenerationStep; label: string; icon: React.ElementType }[] = [
@@ -35,7 +42,7 @@ function formatElapsed(seconds: number): string {
   return m > 0 ? `${m}:${s.toString().padStart(2, '0')}` : `0:${s.toString().padStart(2, '0')}`
 }
 
-export function GenerationProgress({ step, progress, message }: GenerationProgressProps) {
+export function GenerationProgress({ step, progress, message, onRetry, onDismiss }: GenerationProgressProps) {
   // Elapsed time counter
   const [elapsed, setElapsed] = useState(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -109,6 +116,24 @@ export function GenerationProgress({ step, progress, message }: GenerationProgre
           <Progress value={progress} className="h-2" />
           <p className="text-sm text-muted-foreground">{message}</p>
         </div>
+
+        {/* Error actions */}
+        {isError && (onRetry || onDismiss) && (
+          <div className="flex items-center gap-2">
+            {onRetry && (
+              <Button size="sm" variant="default" onClick={onRetry} className="gap-1.5">
+                <RotateCcw className="h-3.5 w-3.5" />
+                Try Again
+              </Button>
+            )}
+            {onDismiss && (
+              <Button size="sm" variant="ghost" onClick={onDismiss} className="gap-1.5">
+                <X className="h-3.5 w-3.5" />
+                Dismiss
+              </Button>
+            )}
+          </div>
+        )}
 
         {/* Step Indicators */}
         {!isError && !isComplete && !isPublishing && (

@@ -68,7 +68,11 @@ function getViewFromHash(): ViewId {
 export default function ContentStudio() {
   // Navigation — initialise from URL hash so refreshes preserve the active view
   const [activeView, setActiveView] = useState<ViewId>(getViewFromHash)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => sessionGet('sidebarCollapsed', false))
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    // Use localStorage for sidebar preference so it persists across tabs/sessions
+    try { return JSON.parse(localStorage.getItem('nn-studio:sidebarCollapsed') || 'false') === true }
+    catch { return false }
+  })
 
   // Sync activeView ↔ URL hash for browser back/forward and refresh persistence
   useEffect(() => {
@@ -95,7 +99,11 @@ export default function ContentStudio() {
   const [isInitialLoading, setIsInitialLoading] = useState(true)
 
   // Persist sidebar state to sessionStorage for refresh resilience
-  useSessionPersist('sidebarCollapsed', sidebarCollapsed)
+  // Persist sidebar state to localStorage (survives across tabs and sessions)
+  useEffect(() => {
+    try { localStorage.setItem('nn-studio:sidebarCollapsed', JSON.stringify(sidebarCollapsed)) }
+    catch { /* localStorage may be unavailable */ }
+  }, [sidebarCollapsed])
 
   // ARIA live announcer for screen reader accessibility
   const announce = useAnnounce()
@@ -132,6 +140,9 @@ export default function ContentStudio() {
   const [pendingOutline, setPendingOutline] = useState<OutlineData | null>(null)
   const [pendingInput, setPendingInput] = useState<ArticleInput | null>(null)
   const [isRegeneratingOutline, setIsRegeneratingOutline] = useState(false)
+
+  // Article loading state — shown while fetching full content from DB
+  const [isLoadingArticle, setIsLoadingArticle] = useState(false)
 
   // Links state
   const [availableInternalLinks, setAvailableInternalLinks] = useState<{ title: string; url: string; description?: string }[]>([])
@@ -300,20 +311,14 @@ export default function ContentStudio() {
   const isDirtyRef = useRef(false)
   useEffect(() => {
     if (!currentArticle?.dbId || !currentArticle.htmlContent) return
-    // Create a content fingerprint using djb2 hash over evenly-spaced samples.
-    // Samples from 4 positions across the full content to catch mid-article edits.
+    // Create a content fingerprint using djb2 hash over the FULL content string.
+    // Hashing the whole string is O(n) but still <1ms for typical article sizes
+    // (10–50 KB) and catches edits at any position (the old 4-position sample
+    // could miss changes in the middle of long articles).
     const content = currentArticle.htmlContent
-    const len = content.length
-    const quarter = Math.max(1, Math.floor(len / 4))
-    const sample =
-      content.slice(0, 128) +
-      content.slice(quarter, quarter + 128) +
-      content.slice(quarter * 2, quarter * 2 + 128) +
-      content.slice(-128) +
-      len
     let hash = 5381
-    for (let i = 0; i < sample.length; i++) {
-      hash = ((hash << 5) + hash + sample.charCodeAt(i)) | 0
+    for (let i = 0; i < content.length; i++) {
+      hash = ((hash << 5) + hash + content.charCodeAt(i)) | 0
     }
     const fingerprint = `${currentArticle.dbId}-${hash}`
     if (fingerprint === lastSavedRef.current) return
@@ -649,12 +654,12 @@ export default function ContentStudio() {
     setActiveView('article-images')
   }
 
-  const handleInsertImages = (enrichedHtml: string, imageCount: number, featuredImage?: { url: string; altText: string }) => {
+  const handleInsertImages = async (enrichedHtml: string, imageCount: number, featuredImage?: { url: string; altText: string }) => {
     const updates: Record<string, unknown> = { hasImages: true, imageCount }
     if (featuredImage) {
       updates.featuredImage = { url: featuredImage.url, altText: featuredImage.altText }
     }
-    handleContentUpdate(enrichedHtml, updates)
+    await handleContentUpdate(enrichedHtml, updates)
   }
 
   const handleStoryboardChange = (storyboard: GeneratedArticle['imageStoryboard']) => {
@@ -767,6 +772,7 @@ export default function ContentStudio() {
 
   const loadArticleFromDb = async (article: GeneratedArticle) => {
     if (!article.htmlContent && article.dbId) {
+      setIsLoadingArticle(true)
       try {
         const response = await fetch(`/api/articles?id=${article.dbId}`)
         if (response.ok) {
@@ -793,6 +799,8 @@ export default function ContentStudio() {
         }
       } catch (error) {
         console.error('Failed to fetch article:', error)
+      } finally {
+        setIsLoadingArticle(false)
       }
     }
     setCurrentArticle(article)
@@ -1021,11 +1029,22 @@ export default function ContentStudio() {
           <NewArticleView onGenerate={handleGenerate} isGenerating={isGenerating} />
         )}
 
-        {/* === Generation Progress === */}
-        {(activeView === 'new-article' && isGenerating) && (
+        {/* === Generation Progress (visible during generation AND on error until dismissed) === */}
+        {(activeView === 'new-article' && (isGenerating || generationStep === 'error')) && (
           <div className="flex flex-1 items-center justify-center p-10" style={{ background: 'var(--bg-warm)' }}>
             <div className="w-full max-w-[560px] rounded-xl border p-9" style={{ background: 'var(--bg)', borderColor: 'var(--border)', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-              <GenerationProgress step={generationStep} progress={generationProgress} message={generationMessage} />
+              <GenerationProgress
+                step={generationStep}
+                progress={generationProgress}
+                message={generationMessage}
+                onRetry={() => {
+                  updateProgress('idle', 0, '')
+                  // Return to form so user can adjust and re-submit
+                }}
+                onDismiss={() => {
+                  updateProgress('idle', 0, '')
+                }}
+              />
             </div>
           </div>
         )}
@@ -1063,7 +1082,12 @@ export default function ContentStudio() {
         {activeView === 'article-content' && currentArticle && (
           <div className="flex flex-1 flex-col overflow-hidden">
             <div className="flex-1 overflow-y-auto">
-              {!isEditing ? (
+              {isLoadingArticle ? (
+                <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground py-20">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  <p className="text-sm">Loading article&hellip;</p>
+                </div>
+              ) : !isEditing ? (
                 <ArticlePreview
                   article={currentArticle}
                   onEdit={() => setIsEditing(true)}

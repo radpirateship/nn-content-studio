@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { toast } from 'sonner'
 import { Layers, Upload, FileSpreadsheet, Plus, Trash2, Play, Loader2, Check, AlertCircle, X, Download, Eye, RotateCcw, Send, ArrowLeft, Circle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -76,6 +76,12 @@ export function BulkUploadView({
   const [endTime, setEndTime] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef(false)
+
+  // Reset phase when the view unmounts (user navigated away), so returning
+  // doesn't land on the review phase with stale data.
+  useEffect(() => {
+    return () => { setPhase('setup') }
+  }, [])
 
   // ââ Manual add row ââ
   const addRow = () => {
@@ -572,13 +578,25 @@ export function BulkUploadView({
         </div>
       </div>
 
-      {/* Progress bar when running */}
+      {/* Progress bar + stats when running */}
       {isRunning && validCount > 0 && (
-        <div className="h-1 w-full" style={{ background: 'var(--surface)' }}>
-          <div
-            className="h-full transition-all duration-500"
-            style={{ background: 'var(--nn-accent)', width: `${(completedCount / validCount) * 100}%` }}
-          />
+        <div>
+          <div className="h-1 w-full" style={{ background: 'var(--surface)' }}>
+            <div
+              className="h-full transition-all duration-500"
+              style={{ background: 'var(--nn-accent)', width: `${(completedCount / validCount) * 100}%` }}
+            />
+          </div>
+          <div className="flex items-center justify-between px-6 py-1.5 text-[11px] font-mono" style={{ background: 'var(--surface)', color: 'var(--text3)' }}>
+            <span>{completedCount} / {validCount} articles ({Math.round((completedCount / validCount) * 100)}%)</span>
+            {completedCount > 0 && startTime && (
+              <span>
+                ~{Math.round(((Date.now() - startTime) / completedCount / 1000) * (validCount - completedCount))}s remaining
+                {' · '}
+                {Math.round((Date.now() - startTime) / completedCount / 1000)}s avg
+              </span>
+            )}
+          </div>
         </div>
       )}
 

@@ -17,7 +17,12 @@
 
 import { getShopifyAccessToken, SHOPIFY_ADMIN_DOMAIN } from "@/lib/shopifyAuth";
 
-const API_VERSIONS = ["2024-10", "2024-07", "2024-04", "2024-01"];
+// Shopify releases quarterly and supports each version for ≥12 months.
+// As of March 2026 the supported stable versions are 2026-01 through 2025-04.
+// We try the latest first to minimise wasted 404 round-trips.
+const API_VERSIONS = ["2026-01", "2025-10", "2025-04"];
+
+const SHOPIFY_REQUEST_TIMEOUT_MS = 15_000; // 15 seconds per request
 
 // ── Internal: Shopify Admin GraphQL fetch ─────────────────────────────────────
 
@@ -37,6 +42,7 @@ async function shopifyGraphQL(
           "X-Shopify-Access-Token": token,
         },
         body: JSON.stringify({ query, variables }),
+        signal: AbortSignal.timeout(SHOPIFY_REQUEST_TIMEOUT_MS),
       });
       if (res.ok) return (await res.json()) as Record<string, unknown>;
       if (res.status === 404) continue;
