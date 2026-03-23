@@ -5,7 +5,7 @@ import type { ViewId } from './app-sidebar'
 
 interface KeyboardShortcutsOptions {
   onNavigate: (view: ViewId) => void
-  onToggleSidebar: () => void
+  onToggleSidebar?: () => void
   onSave?: () => void
   onOpenCommandPalette: () => void
   hasCurrentArticle: boolean
@@ -32,10 +32,10 @@ export function useKeyboardShortcuts({
       return
     }
 
-    // Cmd+B — toggle sidebar
+    // Cmd+B — toggle sidebar (no-op if sidebar collapse is disabled)
     if (meta && e.key === 'b') {
       e.preventDefault()
-      onToggleSidebar()
+      onToggleSidebar?.()
       return
     }
 

@@ -68,12 +68,6 @@ function getViewFromHash(): ViewId {
 export default function ContentStudio() {
   // Navigation — initialise from URL hash so refreshes preserve the active view
   const [activeView, setActiveView] = useState<ViewId>(getViewFromHash)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
-    // Use localStorage for sidebar preference so it persists across tabs/sessions
-    try { return JSON.parse(localStorage.getItem('nn-studio:sidebarCollapsed') || 'false') === true }
-    catch { return false }
-  })
-
   // Sync activeView ↔ URL hash for browser back/forward and refresh persistence
   useEffect(() => {
     const newHash = `#${activeView}`
@@ -97,13 +91,6 @@ export default function ContentStudio() {
 
   // Initial loading state
   const [isInitialLoading, setIsInitialLoading] = useState(true)
-
-  // Persist sidebar state to sessionStorage for refresh resilience
-  // Persist sidebar state to localStorage (survives across tabs and sessions)
-  useEffect(() => {
-    try { localStorage.setItem('nn-studio:sidebarCollapsed', JSON.stringify(sidebarCollapsed)) }
-    catch { /* localStorage may be unavailable */ }
-  }, [sidebarCollapsed])
 
   // ARIA live announcer for screen reader accessibility
   const announce = useAnnounce()
@@ -887,14 +874,14 @@ export default function ContentStudio() {
   // Keyboard shortcuts
   const { showHelp: showShortcutsHelp, setShowHelp: setShowShortcutsHelp } = useKeyboardShortcuts({
     onNavigate: handleNavigate,
-    onToggleSidebar: () => setSidebarCollapsed(prev => !prev),
+
     onSave: currentArticle ? () => updateArticleInDb(currentArticle) : undefined,
     onOpenCommandPalette: () => setCommandPaletteOpen(true),
     hasCurrentArticle: !!currentArticle,
   })
 
   return (
-    <div className="grid h-screen overflow-hidden" style={{ gridTemplateColumns: sidebarCollapsed ? '56px 1fr' : 'var(--sidebar-w) 1fr', gridTemplateRows: 'var(--header-h) 1fr', transition: 'grid-template-columns 0.2s ease' }}>
+    <div className="grid h-screen overflow-hidden" style={{ gridTemplateColumns: 'var(--sidebar-w) 1fr', gridTemplateRows: 'var(--header-h) 1fr' }}>
       {/* Topbar */}
       <div style={{ gridColumn: '1 / -1', gridRow: '1' }}>
         <AppTopbar isGenerating={isGenerating} generationMessage={generationMessage} />
@@ -910,8 +897,6 @@ export default function ContentStudio() {
           hasCurrentArticle={!!currentArticle}
           currentArticleTitle={currentArticle?.title}
           articleBadges={articleBadges}
-          collapsed={sidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed(prev => !prev)}
         />
       </div>
 
