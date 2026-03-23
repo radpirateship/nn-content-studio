@@ -60,18 +60,22 @@ export function ImageStoryboard({
   const initialConcepts = initialStoryboard?.concepts ? enrichConcepts(initialStoryboard.concepts, article.htmlContent || '') : []
   const [concepts, setConcepts] = useState<ImageConcept[]>(initialConcepts)
   const [isDrafting, setIsDrafting] = useState(false)
-  const [isInserting, setIsInserting] = useState(false)
+  const [isInserting, setIsInserting] = useState(false)   // true when "Insert All" is running
+  const [insertingConceptId, setInsertingConceptId] = useState<string | null>(null) // id of card being individually inserted
   const [draftError, setDraftError] = useState<string | null>(null)
-  const [insertedCount, setInsertedCount] = useState<number | null>(initialStoryboard?.insertedCount ?? null)
+  const [insertedIds, setInsertedIds] = useState<Set<string>>(
+    () => new Set(initialStoryboard?.insertedIds ?? [])
+  )
   const [latestHtmlContent, setLatestHtmlContent] = useState<string>(article.htmlContent || '')
   const [featuredImageState, setFeaturedImageState] = useState<{ url: string; altText: string } | undefined>(initialStoryboard?.featuredImage)
   const [persistenceWarning, setPersistenceWarning] = useState<string | null>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingConceptsRef = useRef<ImageConcept[] | null>(null)
   const pendingMetaRef = useRef<Partial<ImageStoryboardDraft> | undefined>(undefined)
-  const latestMetaRef = useRef<Pick<ImageStoryboardDraft, 'insertedAt' | 'insertedCount' | 'featuredImage'>>({
+  const latestMetaRef = useRef<Pick<ImageStoryboardDraft, 'insertedAt' | 'insertedCount' | 'insertedIds' | 'featuredImage'>>({
     insertedAt: initialStoryboard?.insertedAt,
     insertedCount: initialStoryboard?.insertedCount,
+    insertedIds: initialStoryboard?.insertedIds,
     featuredImage: initialStoryboard?.featuredImage,
   })
 
@@ -100,11 +104,12 @@ export function ImageStoryboard({
         if (!cancelled && data?.image_storyboard?.concepts?.length) {
           const restored = enrichConcepts(data.image_storyboard.concepts, data.html_content || article.htmlContent || '')
           setConcepts(restored)
-          setInsertedCount(data.image_storyboard.insertedCount ?? null)
+          setInsertedIds(new Set(data.image_storyboard.insertedIds ?? []))
           setFeaturedImageState(data.image_storyboard.featuredImage)
           latestMetaRef.current = {
             insertedAt: data.image_storyboard.insertedAt,
             insertedCount: data.image_storyboard.insertedCount,
+            insertedIds: data.image_storyboard.insertedIds,
             featuredImage: data.image_storyboard.featuredImage,
           }
         }
@@ -132,11 +137,13 @@ export function ImageStoryboard({
     nextConcepts: ImageConcept[],
     meta?: Partial<ImageStoryboardDraft>,
   ) => {
+    const nextInsertedIds = meta?.insertedIds ?? latestMetaRef.current.insertedIds
     const nextStoryboard: ImageStoryboardDraft = {
       version: 1,
       concepts: nextConcepts,
       insertedAt: meta?.insertedAt ?? latestMetaRef.current.insertedAt,
       insertedCount: meta?.insertedCount ?? latestMetaRef.current.insertedCount,
+      insertedIds: nextInsertedIds,
       featuredImage: meta?.featuredImage ?? latestMetaRef.current.featuredImage,
       updatedAt: new Date().toISOString(),
     }
@@ -146,6 +153,7 @@ export function ImageStoryboard({
     latestMetaRef.current = {
       insertedAt: nextStoryboard.insertedAt,
       insertedCount: nextStoryboard.insertedCount,
+      insertedIds: nextStoryboard.insertedIds,
       featuredImage: nextStoryboard.featuredImage,
     }
 
@@ -189,12 +197,13 @@ export function ImageStoryboard({
     setIsDrafting(true)
     setDraftError(null)
     setConcepts([])
-    setInsertedCount(null)
+    setInsertedIds(new Set())
     setFeaturedImageState(undefined)
     onStoryboardChange(null)
     latestMetaRef.current = {
       insertedAt: undefined,
       insertedCount: undefined,
+      insertedIds: undefined,
       featuredImage: undefined,
     }
 
@@ -218,6 +227,7 @@ export function ImageStoryboard({
       await persistStoryboard(nextConcepts, {
         insertedAt: undefined,
         insertedCount: undefined,
+        insertedIds: [],
         featuredImage: undefined,
       })
     } catch (error) {
@@ -290,177 +300,260 @@ export function ImageStoryboard({
     schedulePersist(nextConcepts)
   }
 
+  // ── Shared Shopify upload helper ───────────────────────────────────────────
+  const uploadToShopify = async (imageUrl: string, altText: string): Promise<string> => {
+    if (imageUrl.includes('cdn.shopify.com')) return imageUrl
+    const res = await fetch('/api/articles/upload-to-shopify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageUrl, altText }),
+    })
+    if (!res.ok) throw new Error(`Shopify upload HTTP ${res.status}`)
+    const data = await res.json()
+    return data.shopifyUrl || imageUrl
+  }
+
+  // ── Inject one body concept into the current HTML ──────────────────────────
+  // Returns {newHtml, inserted} — does NOT mutate state itself.
+  const injectBodyImage = (
+    concept: ImageConcept,
+    html: string,
+    sectionsAlreadyUsed: Set<string>,
+  ): { newHtml: string; inserted: boolean; sectionId: string | null } => {
+    const altText = (concept.altText || concept.label || 'Article illustration').replace(/"/g, '&quot;')
+    const cleanUrl = extractImageUrl(concept.imageUrl || '')
+    if (!cleanUrl) return { newHtml: html, inserted: false, sectionId: null }
+
+    const figureTag = `\n<figure class="nn-content-image"><img src="${cleanUrl}" alt="${altText}" loading="lazy" /></figure>\n`
+
+    // Primary: match by targetSectionId
+    if (concept.targetSectionId && !sectionsAlreadyUsed.has(concept.targetSectionId)) {
+      const sectionRegex = new RegExp(
+        `(<h2[^>]*id="${concept.targetSectionId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*>[\\s\\S]*?<\\/h2>)`,
+        'i'
+      )
+      const m = sectionRegex.exec(html)
+      if (m) {
+        const insertPos = m.index + m[0].length
+        const before = html.slice(Math.max(0, insertPos - 500), insertPos)
+        if (!before.includes('nn-product-card') && !before.includes('featured-products')) {
+          return {
+            newHtml: html.slice(0, insertPos) + figureTag + html.slice(insertPos),
+            inserted: true,
+            sectionId: concept.targetSectionId,
+          }
+        }
+      }
+    }
+
+    // Fallback: label-based heading match
+    const cleanLabel = (concept.label || '')
+      .replace(/^(featured|figure\s*\d*|content|technical|lifestyle|comparison|infographic)\s*[:–\-]\s*/i, '')
+      .trim()
+      .toLowerCase()
+    const labelWords = cleanLabel.split(/\s+/).filter((w: string) => w.length > 3)
+    const headingRegex = /(<h2[^>]*(?:id="([^"]*)")?[^>]*>)(.*?)(<\/h2>)/gi
+    let match
+    let bestMatch: { index: number; sectionId: string } | null = null
+    let bestScore = 0
+
+    while ((match = headingRegex.exec(html)) !== null) {
+      const sectionId = match[2] || ''
+      if (sectionsAlreadyUsed.has(sectionId)) continue
+      const before = html.slice(Math.max(0, match.index - 300), match.index)
+      if (before.includes('nn-product-card') || before.includes('featured-products')) continue
+      const headingText = match[3].replace(/<[^>]*>/g, '').toLowerCase()
+      const score = labelWords.filter((w: string) => headingText.includes(w)).length
+      if (score > bestScore) {
+        bestScore = score
+        bestMatch = { index: match.index + match[0].length, sectionId }
+      }
+    }
+
+    if (bestMatch && bestScore >= Math.min(2, labelWords.length)) {
+      return {
+        newHtml: html.slice(0, bestMatch.index) + figureTag + html.slice(bestMatch.index),
+        inserted: true,
+        sectionId: bestMatch.sectionId || null,
+      }
+    }
+
+    return { newHtml: html, inserted: false, sectionId: null }
+  }
+
+  // ── Insert a single concept by ID ──────────────────────────────────────────
+  const handleInsertOne = async (conceptId: string) => {
+    const concept = concepts.find(c => c.id === conceptId)
+    if (!concept?.imageUrl || concept.status !== 'generated') return
+    if (insertedIds.has(conceptId)) return  // already placed
+
+    setInsertingConceptId(conceptId)
+    try {
+      if (concept.type === 'featured') {
+        let featUrl = concept.imageUrl
+        const featAlt = concept.altText || article.title
+        try {
+          featUrl = await uploadToShopify(concept.imageUrl, `${article.title} - Naked Nutrition`)
+        } catch (e) {
+          console.error('[image-storyboard] Featured Shopify upload failed:', e)
+          toast.warning('Featured image upload failed', { description: 'Using temporary URL — re-upload before publishing.' })
+        }
+        // Update concept with CDN URL
+        const nextConcepts = concepts.map(c => c.id === conceptId ? { ...c, imageUrl: featUrl } : c)
+        setConcepts(nextConcepts)
+        const featuredImage = { url: featUrl, altText: featAlt }
+        setFeaturedImageState(featuredImage)
+        const newIds = new Set([...insertedIds, conceptId])
+        setInsertedIds(newIds)
+        const bodyCount = nextConcepts.filter(c => c.type !== 'featured' && newIds.has(c.id)).length
+        await persistStoryboard(nextConcepts, {
+          insertedAt: new Date().toISOString(),
+          insertedCount: bodyCount,
+          insertedIds: [...newIds],
+          featuredImage,
+        })
+        onInsertImages(latestHtmlContent, bodyCount, featuredImage)
+        toast.success('Featured image set')
+      } else {
+        // Upload to Shopify first
+        let imageUrl = concept.imageUrl
+        try {
+          imageUrl = await uploadToShopify(concept.imageUrl, concept.altText || concept.label)
+          const nextConcepts = concepts.map(c => c.id === conceptId ? { ...c, imageUrl } : c)
+          setConcepts(nextConcepts)
+        } catch (e) {
+          console.error(`[image-storyboard] Shopify upload failed for "${concept.label}":`, e)
+          toast.warning(`Shopify upload failed for "${concept.label?.slice(0, 30)}"`, { description: 'Using temporary URL.' })
+        }
+
+        // Build set of sections already occupied by previously inserted body images
+        const sectionsUsed = new Set<string>()
+        for (const c of concepts) {
+          if (c.type !== 'featured' && insertedIds.has(c.id) && c.targetSectionId) {
+            sectionsUsed.add(c.targetSectionId)
+          }
+        }
+
+        let html = latestHtmlContent || article.htmlContent || ''
+        // Strip stale placeholders
+        html = html.replace(/<img[^>]*src="?\[IMAGE_PLACEHOLDER_\d+\]"?[^>]*\/?>/gi, '')
+        html = html.replace(/\[IMAGE_PLACEHOLDER_\d+\]/g, '')
+
+        const { newHtml, inserted, sectionId } = injectBodyImage({ ...concept, imageUrl }, html, sectionsUsed)
+
+        if (inserted) {
+          setLatestHtmlContent(newHtml)
+          const newIds = new Set([...insertedIds, conceptId])
+          setInsertedIds(newIds)
+          const bodyCount = concepts.filter(c => c.type !== 'featured' && newIds.has(c.id)).length + 1
+          await persistStoryboard(concepts, {
+            insertedAt: new Date().toISOString(),
+            insertedCount: bodyCount,
+            insertedIds: [...newIds],
+            featuredImage: featuredImageState,
+          })
+          onInsertImages(newHtml, bodyCount, featuredImageState)
+          toast.success(`Image inserted after "${sectionId || concept.targetSectionId || 'matching section'}"`)
+        } else {
+          toast.warning(`Couldn't find a matching section for "${concept.label}"`, {
+            description: 'Try editing the prompt or using Insert All which uses a broader matching strategy.',
+          })
+        }
+      }
+    } catch (error) {
+      console.error('[image-storyboard] handleInsertOne failed:', error)
+      toast.error('Insert failed')
+    } finally {
+      setInsertingConceptId(null)
+    }
+  }
+
+  // ── Insert all remaining (not yet placed) generated concepts ───────────────
   const handleInsertAll = async () => {
-    if (generatedConcepts.length === 0) return
+    const toInsert = generatedConcepts.filter(c => !insertedIds.has(c.id))
+    if (toInsert.length === 0) return
     setIsInserting(true)
 
     try {
-      // Separate featured image from body images — featured should NOT be inserted into body HTML
-      const featuredConcept = generatedConcepts.find(c => c.type === 'featured')
-      const bodyImages = generatedConcepts.filter(c => c.type !== 'featured').map(c => ({
-        imageUrl: c.imageUrl,
-        label: c.label,
-        altText: c.altText || c.label.replace(/^(featured|figure\s*\d*)\s*[:–\-]\s*/i, '').trim(),
-        targetSectionId: c.targetSectionId || '',
-      }))
-
-      // ── Step 0: Upload ALL images to Shopify Files BEFORE inserting into HTML ──
-      // This ensures HTML always contains permanent cdn.shopify.com URLs
-      // (never data URIs or temp fal.media URLs that break after a few hours).
-      console.log(`[image-storyboard] Uploading ${bodyImages.length} body images to Shopify Files...`)
-
-      // Upload featured image to Shopify too
-      let shopifyFeaturedUrl = featuredConcept?.imageUrl
-      let shopifyFeaturedAlt = featuredConcept?.altText || article.title
-      if (featuredConcept?.imageUrl && !featuredConcept.imageUrl.includes('cdn.shopify.com')) {
-        try {
-          const res = await fetch('/api/articles/upload-to-shopify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ imageUrl: featuredConcept.imageUrl, altText: `${article.title} - Naked Nutrition` }),
-          })
-          if (res.ok) {
-            const data = await res.json()
-            if (data.shopifyUrl) {
-              shopifyFeaturedUrl = data.shopifyUrl
-              console.log('[image-storyboard] Featured image uploaded to Shopify CDN')
-            }
+      // Upload all to Shopify first in parallel
+      const uploadedConcepts = await Promise.all(
+        toInsert.map(async c => {
+          if (!c.imageUrl) return c
+          const altText = c.type === 'featured'
+            ? `${article.title} - Naked Nutrition`
+            : (c.altText || c.label)
+          try {
+            const url = await uploadToShopify(c.imageUrl, altText)
+            return { ...c, imageUrl: url }
+          } catch {
+            toast.warning(`Shopify upload failed for "${c.label?.slice(0, 30)}"`, { description: 'Using temporary URL.' })
+            return c
           }
-        } catch (e) {
-          console.error('[image-storyboard] Featured image Shopify upload failed:', e)
-          toast.warning('Featured image upload to Shopify failed', { description: 'Using temporary URL — re-upload before publishing.' })
-        }
+        })
+      )
+
+      // Update concepts with CDN URLs
+      const conceptMap = new Map(uploadedConcepts.map(c => [c.id, c]))
+      const nextConcepts = concepts.map(c => conceptMap.get(c.id) ?? c)
+      setConcepts(nextConcepts)
+
+      // Handle featured image
+      const featuredConcept = uploadedConcepts.find(c => c.type === 'featured')
+      const featuredImage = featuredConcept?.imageUrl
+        ? { url: featuredConcept.imageUrl, altText: featuredConcept.altText || article.title }
+        : featuredImageState
+
+      if (featuredConcept && featuredImage) {
+        setFeaturedImageState(featuredImage)
       }
 
-      // Upload each body image to Shopify
-      for (const img of bodyImages) {
-        if (!img.imageUrl || img.imageUrl.includes('cdn.shopify.com')) continue
-        try {
-          const res = await fetch('/api/articles/upload-to-shopify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ imageUrl: img.imageUrl, altText: img.altText || img.label }),
-          })
-          if (res.ok) {
-            const data = await res.json()
-            if (data.shopifyUrl) {
-              img.imageUrl = data.shopifyUrl
-              console.log(`[image-storyboard] Body image "${img.label?.slice(0, 40)}" uploaded to Shopify CDN`)
-            }
-          } else {
-            console.error(`[image-storyboard] Shopify upload failed for "${img.label?.slice(0, 40)}" — using original URL`)
-            toast.warning(`Shopify upload failed for "${img.label?.slice(0, 30)}"`, { description: 'Using temporary URL — this image should be re-uploaded before publishing.' })
-          }
-        } catch (e) {
-          console.error(`[image-storyboard] Shopify upload error for "${img.label?.slice(0, 40)}":`, e)
-          toast.warning(`Shopify upload error for "${img.label?.slice(0, 30)}"`, { description: 'Using temporary URL.' })
-        }
-      }
-
-      let enrichedHTML = latestHtmlContent || article.htmlContent || ''
-      let count = 0
-
-      // Step 1: Strip any stale placeholder <img> tags or markers
-      enrichedHTML = enrichedHTML.replace(/<img[^>]*src="?\[IMAGE_PLACEHOLDER_\d+\]"?[^>]*\/?>/gi, '')
-      enrichedHTML = enrichedHTML.replace(/\[IMAGE_PLACEHOLDER_\d+\]/g, '')
-
-      // Step 2: Strip any image placeholders that leaked inside product cards
-      enrichedHTML = enrichedHTML.replace(
+      // Insert body images sequentially into HTML
+      let html = latestHtmlContent || article.htmlContent || ''
+      html = html.replace(/<img[^>]*src="?\[IMAGE_PLACEHOLDER_\d+\]"?[^>]*\/?>/gi, '')
+      html = html.replace(/\[IMAGE_PLACEHOLDER_\d+\]/g, '')
+      html = html.replace(
         /(<div[^>]*class="[^"]*nn-product-card[^"]*"[^>]*>)([\s\S]*?)(<\/div>\s*<\/div>\s*<\/div>)/gi,
         (match) => match.replace(/<figure[^>]*class="nn-content-image"[^>]*>[\s\S]*?<\/figure>/gi, '')
       )
 
-      // Step 3: Track which sections already have an image to prevent stacking
-      const sectionsWithImages = new Set<string>()
-
-      // Step 4: Insert ONLY body images (not featured) after their target section H2
-      for (const img of bodyImages) {
-        if (!img.imageUrl) continue
-
-        const cleanUrl = extractImageUrl(img.imageUrl)
-        if (!cleanUrl) {
-          console.error('[image-storyboard] Skipping — could not extract clean URL')
-          continue
-        }
-
-        const altText = (img.altText || img.label || 'Article illustration').replace(/"/g, '&quot;')
-        const figureTag = `\n<figure class="nn-content-image"><img src="${cleanUrl}" alt="${altText}" loading="lazy" /></figure>\n`
-
-        let inserted = false
-
-        // Primary: match by targetSectionId (max 1 image per section)
-        if (img.targetSectionId && !sectionsWithImages.has(img.targetSectionId)) {
-          const sectionRegex = new RegExp(
-            `(<h2[^>]*id="${img.targetSectionId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*>[\\s\\S]*?<\\/h2>)`,
-            'i'
-          )
-          const sectionMatch = sectionRegex.exec(enrichedHTML)
-          if (sectionMatch) {
-            const insertPos = sectionMatch.index + sectionMatch[0].length
-            const before = enrichedHTML.slice(Math.max(0, insertPos - 500), insertPos)
-            if (!before.includes('nn-product-card') && !before.includes('featured-products')) {
-              enrichedHTML = enrichedHTML.slice(0, insertPos) + figureTag + enrichedHTML.slice(insertPos)
-              sectionsWithImages.add(img.targetSectionId)
-              count++
-              inserted = true
-            }
-          }
-        }
-
-        // Fallback: label-based heading match (still max 1 per section)
-        if (!inserted) {
-          const cleanLabel = (img.label || '')
-            .replace(/^(featured|figure\s*\d*|content|technical|lifestyle|comparison|infographic)\s*[:–\-]\s*/i, '')
-            .trim()
-            .toLowerCase()
-          const labelWords = cleanLabel.split(/\s+/).filter((w: string) => w.length > 3)
-          const headingRegex = /(<h2[^>]*(?:id="([^"]*)")?[^>]*>)(.*?)(<\/h2>)/gi
-          let match
-          let bestMatch: { index: number; sectionId: string } | null = null
-          let bestScore = 0
-
-          while ((match = headingRegex.exec(enrichedHTML)) !== null) {
-            const sectionId = match[2] || ''
-            if (sectionsWithImages.has(sectionId)) continue
-
-            const before = enrichedHTML.slice(Math.max(0, match.index - 300), match.index)
-            if (before.includes('nn-product-card') || before.includes('featured-products')) continue
-
-            const headingText = match[3].replace(/<[^>]*>/g, '').toLowerCase()
-            const score = labelWords.filter((w: string) => headingText.includes(w)).length
-            if (score > bestScore) {
-              bestScore = score
-              bestMatch = { index: match.index + match[0].length, sectionId }
-            }
-          }
-
-          if (bestMatch && bestScore >= Math.min(2, labelWords.length)) {
-            enrichedHTML = enrichedHTML.slice(0, bestMatch.index) + figureTag + enrichedHTML.slice(bestMatch.index)
-            if (bestMatch.sectionId) sectionsWithImages.add(bestMatch.sectionId)
-            count++
-          }
+      const sectionsUsed = new Set<string>()
+      // Pre-populate from already-inserted concepts
+      for (const c of concepts) {
+        if (c.type !== 'featured' && insertedIds.has(c.id) && c.targetSectionId) {
+          sectionsUsed.add(c.targetSectionId)
         }
       }
 
-      // Pass featured image separately — maps to Shopify's article.image (featured_image) field
-      // The Shopify theme renders this natively at the top of the article page
-      // Do NOT inject it into body HTML to avoid double-image rendering
-      // Use the Shopify CDN URL (uploaded in Step 0), not the raw data URI
-      const featuredImage = shopifyFeaturedUrl
-        ? { url: shopifyFeaturedUrl, altText: shopifyFeaturedAlt }
-        : undefined
+      const newlyInsertedIds = new Set<string>()
+      // Add featured if present
+      if (featuredConcept) newlyInsertedIds.add(featuredConcept.id)
 
+      for (const concept of uploadedConcepts.filter(c => c.type !== 'featured')) {
+        if (!concept.imageUrl) continue
+        const { newHtml, inserted, sectionId } = injectBodyImage(concept, html, sectionsUsed)
+        if (inserted) {
+          html = newHtml
+          newlyInsertedIds.add(concept.id)
+          if (sectionId) sectionsUsed.add(sectionId)
+        }
+      }
+
+      const allInsertedIds = new Set([...insertedIds, ...newlyInsertedIds])
+      setInsertedIds(allInsertedIds)
+      setLatestHtmlContent(html)
+
+      const bodyCount = nextConcepts.filter(c => c.type !== 'featured' && allInsertedIds.has(c.id)).length
       const insertedAt = new Date().toISOString()
-      setFeaturedImageState(featuredImage)
-      setInsertedCount(count)
-      await persistStoryboard(concepts, {
+      await persistStoryboard(nextConcepts, {
         insertedAt,
-        insertedCount: count,
+        insertedCount: bodyCount,
+        insertedIds: [...allInsertedIds],
         featuredImage,
       })
-      onInsertImages(enrichedHTML, count, featuredImage)
+      onInsertImages(html, bodyCount, featuredImage)
     } catch (error) {
       console.error('Failed to insert images:', error)
+      toast.error('Insert failed')
     } finally {
       setIsInserting(false)
     }
@@ -614,6 +707,10 @@ export function ImageStoryboard({
               index={index}
               onGenerate={() => handleGenerateImage(concept.id)}
               onEditPrompt={(prompt) => handleEditPrompt(concept.id, prompt)}
+              isInserted={insertedIds.has(concept.id)}
+              isInsertingThis={insertingConceptId === concept.id}
+              anyInserting={isInserting || insertingConceptId !== null}
+              onInsert={() => handleInsertOne(concept.id)}
             />
           ))}
         </div>
@@ -634,62 +731,81 @@ export function ImageStoryboard({
         </div>{/* end space-y-6 */}
       </div>{/* end scrollable area */}
 
-      {/* -- Sticky Footer: Insert Images / Success -- */}
-      {generatedConcepts.length > 0 && insertedCount === null && (
-        <div className="flex-shrink-0 border-t px-6 py-4" style={{ background: 'color-mix(in srgb, var(--nn-accent) 6%, var(--bg))', borderColor: 'var(--border)' }}>
-          <div className="flex items-center justify-between gap-4">
-            <div className="space-y-0.5">
-              <p className="text-sm font-medium" style={{ color: 'var(--text1)' }}>
-                {generatedConcepts.length} image{generatedConcepts.length > 1 ? 's' : ''} ready to insert
-              </p>
-              <p className="text-xs" style={{ color: 'var(--text3)' }}>
-                Featured image is saved separately; inline images are inserted after their matching section headings
-              </p>
-            </div>
-            <Button
-              onClick={handleInsertAll}
-              disabled={isInserting}
-              className="gap-1.5"
-            >
-              {isInserting ? (
-                <>
-                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                  Inserting...
-                </>
-              ) : (
-                <>
-                  <Download className="mr-1.5 h-4 w-4" />
-                  Insert {generatedConcepts.length} Images into Article
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      )}
+      {/* -- Sticky Footer -- */}
+      {(() => {
+        const remaining = generatedConcepts.filter(c => !insertedIds.has(c.id))
+        const placedCount = generatedConcepts.length - remaining.length
+        const allPlaced = generatedConcepts.length > 0 && remaining.length === 0
+        const anyPlaced = placedCount > 0
+        const anyInserting = isInserting || insertingConceptId !== null
 
-      {insertedCount !== null && (
-        <div className="flex-shrink-0 border-t px-6 py-4" style={{ background: 'color-mix(in srgb, #16a34a 8%, var(--bg))', borderColor: 'var(--border)' }}>
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100">
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-green-800">
-                  {(featuredImageState ? '1 featured image saved and ' : '') + `${insertedCount} inline image${insertedCount === 1 ? '' : 's'} inserted into article`}
-                </p>
-                <p className="text-xs text-green-700/70">
-                  Featured image stays outside the body HTML; inline images have been placed into matching sections
-                </p>
+        if (generatedConcepts.length === 0) return null
+
+        if (allPlaced) {
+          const bodyPlaced = concepts.filter(c => c.type !== 'featured' && insertedIds.has(c.id)).length
+          return (
+            <div className="flex-shrink-0 border-t px-6 py-4" style={{ background: 'color-mix(in srgb, #16a34a 8%, var(--bg))', borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100">
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-green-800">
+                      {(featuredImageState ? '1 featured image set · ' : '') + `${bodyPlaced} inline image${bodyPlaced === 1 ? '' : 's'} inserted`}
+                    </p>
+                    <p className="text-xs text-green-700/70">
+                      All images placed — featured image is set separately on Shopify
+                    </p>
+                  </div>
+                </div>
+                <Button size="sm" onClick={onSkip} className="gap-1.5">
+                  <ChevronLeft className="h-4 w-4" />
+                  Back to Editor
+                </Button>
               </div>
             </div>
-            <Button size="sm" onClick={onSkip} className="gap-1.5">
-              <ChevronLeft className="h-4 w-4" />
-              Back to Editor
-            </Button>
+          )
+        }
+
+        return (
+          <div className="flex-shrink-0 border-t px-6 py-4" style={{ background: 'color-mix(in srgb, var(--nn-accent) 6%, var(--bg))', borderColor: 'var(--border)' }}>
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                {anyPlaced ? (
+                  <p className="text-sm font-medium" style={{ color: 'var(--text1)' }}>
+                    {placedCount} of {generatedConcepts.length} placed · {remaining.length} remaining
+                  </p>
+                ) : (
+                  <p className="text-sm font-medium" style={{ color: 'var(--text1)' }}>
+                    {generatedConcepts.length} image{generatedConcepts.length > 1 ? 's' : ''} ready to insert
+                  </p>
+                )}
+                <p className="text-xs" style={{ color: 'var(--text3)' }}>
+                  Use the Insert button on each card, or insert all at once below
+                </p>
+              </div>
+              <Button
+                onClick={handleInsertAll}
+                disabled={anyInserting}
+                className="gap-1.5 shrink-0"
+              >
+                {isInserting ? (
+                  <>
+                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                    Inserting...
+                  </>
+                ) : (
+                  <>
+                    <Download className="mr-1.5 h-4 w-4" />
+                    {anyPlaced ? `Insert ${remaining.length} Remaining` : `Insert All ${generatedConcepts.length}`}
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
@@ -700,11 +816,19 @@ function ConceptCard({
   index,
   onGenerate,
   onEditPrompt,
+  isInserted,
+  isInsertingThis,
+  anyInserting,
+  onInsert,
 }: {
   concept: ImageConcept
   index: number
   onGenerate: () => void
   onEditPrompt: (prompt: string) => void
+  isInserted: boolean
+  isInsertingThis: boolean
+  anyInserting: boolean
+  onInsert: () => void
 }) {
   const [isEditingPrompt, setIsEditingPrompt] = useState(false)
   const currentPrompt = concept.editedPrompt || concept.prompt
@@ -812,13 +936,45 @@ function ConceptCard({
               </div>
             )}
 
-            {/* Generate Button */}
-            <div className="mt-auto flex justify-end">
+            {/* Action row: Generate/Regenerate + Insert */}
+            <div className="mt-auto flex items-center justify-between gap-2">
+              {/* Insert button — only shown when image is generated */}
+              {concept.status === 'generated' && (
+                isInserted ? (
+                  <span className="flex items-center gap-1 text-xs font-medium text-green-600">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    {concept.type === 'featured' ? 'Featured set' : 'Inserted'}
+                  </span>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={onInsert}
+                    disabled={anyInserting}
+                    className="gap-1.5 border-[var(--nn-accent)] text-[var(--nn-accent)] hover:bg-[var(--nn-accent-light)]"
+                  >
+                    {isInsertingThis ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Inserting…
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-3.5 w-3.5" />
+                        {concept.type === 'featured' ? 'Set as Featured' : 'Insert'}
+                      </>
+                    )}
+                  </Button>
+                )
+              )}
+              {concept.status !== 'generated' && <span />}
+
+              {/* Generate / Regenerate */}
               <Button
                 size="sm"
                 onClick={onGenerate}
                 disabled={concept.status === 'generating'}
-                variant={concept.status === 'generated' ? 'outline' : 'default'}
+                variant={concept.status === 'generated' ? 'ghost' : 'default'}
                 className="gap-1.5"
               >
                 {concept.status === 'generating' ? (

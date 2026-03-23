@@ -183,6 +183,7 @@ export interface ImageStoryboardDraft {
   concepts: ImageConcept[]
   insertedAt?: string
   insertedCount?: number
+  insertedIds?: string[]   // per-concept tracking; supersedes insertedCount
   featuredImage?: {
     url: string
     altText: string
