@@ -427,7 +427,7 @@ export function ContentResourcesManager({
               <SelectTrigger className="w-[280px]">
                 <SelectValue placeholder="Select a collection..." />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper" className="z-50">
                 {allCollections.map((col) => (
                   <SelectItem key={col.slug} value={col.slug}>
                     <span className="flex items-center gap-2">
@@ -505,22 +505,27 @@ export function ContentResourcesManager({
                     key={col.slug}
                     onClick={() => setSelectedCollection(col.slug)}
                     className={cn(
-                      "p-2 rounded-md border text-xs text-center transition-colors cursor-pointer min-w-[90px]",
-                      selectedCollection === col.slug 
-                        ? "border-primary bg-primary/10 font-medium" 
-                        : hasData 
-                          ? "border-green-500/30 bg-green-500/5 hover:bg-green-500/10" 
+                      "px-3 py-2 rounded-md border text-xs text-center transition-colors cursor-pointer w-[110px]",
+                      selectedCollection === col.slug
+                        ? "border-primary bg-primary/10 font-medium"
+                        : hasData
+                          ? "border-green-500/30 bg-green-500/5 hover:bg-green-500/10"
                           : "border-muted hover:bg-muted/50"
                     )}
                   >
-                    <div className="font-medium truncate">{col.label.split(' ')[0]}</div>
+                    <div className="font-medium leading-tight" style={{
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }}>{col.label}</div>
                     {hasData ? (
-                      <div className="text-muted-foreground mt-0.5">
+                      <div className="text-muted-foreground mt-1">
                         {s.topicalAuthority > 0 && <span>{s.topicalAuthority} TA</span>}
                         {s.products > 0 && <span className="ml-1">{s.products} P</span>}
                       </div>
                     ) : (
-                      <div className="text-muted-foreground mt-0.5">{'—'}</div>
+                      <div className="text-muted-foreground mt-1">{'—'}</div>
                     )}
                   </button>
                 )
